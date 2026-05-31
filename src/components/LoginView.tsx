@@ -1,131 +1,82 @@
 "use client";
 
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { Mail, ShieldCheck, Lock, ArrowRight } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
+import { ensureDefaultCompany } from "@/lib/supabase/auth";
 
-interface LoginViewProps {
-  onLoginSuccess: (email: string) => void;
-  onGoToSignup: () => void;
-}
-
-export default function LoginView({ onLoginSuccess, onGoToSignup }: LoginViewProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function LoginView() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !email.includes('@')) return;
+    setError("");
     setLoading(true);
-    setTimeout(() => {
-      onLoginSuccess(email);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
       setLoading(false);
-    }, 850);
-  };
+      return;
+    }
+
+    await ensureDefaultCompany(email);
+    router.push("/dashboard");
+  }
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center bg-[#FDFDFD] px-6 my-10 font-sans" id="login-view-root">
-      <div className="w-full max-w-md space-y-10 text-left">
-        
-        {/* Title Area */}
-        <div className="space-y-3">
-          <span className="text-[10px] tracking-widest font-mono text-[#9D8055] uppercase font-bold block">
-            🔒 SECURE CLIENT LOGON Gateway
-          </span>
-          <h1 className="text-4xl font-bold tracking-tight text-stone-950 font-sans">
-            Welcome back to Octo.
-          </h1>
-          <p className="text-xs text-stone-500 font-light mt-1.5 font-sans">
-            Sign in to your AI company. All runs execute inside safe host spaces.
-          </p>
+    <main className="min-h-screen bg-[#FDFDFD] text-stone-950 flex items-center justify-center px-6">
+      <form onSubmit={handleLogin} className="w-full max-w-md border border-stone-200 bg-white p-8 rounded-2xl space-y-6">
+        <div>
+          <p className="text-[10px] font-mono tracking-[0.4em] text-stone-400 uppercase">Octo Login</p>
+          <h1 className="mt-4 text-4xl font-bold tracking-tight">Welcome back.</h1>
+          <p className="mt-3 text-sm text-stone-500">Log in to your AI company workspace.</p>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-5 bg-white border border-stone-200/90 rounded-3xl p-8 shadow-3xs">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-mono text-stone-500 uppercase tracking-wider block font-bold">Email Address</label>
-              <input
-                type="email"
-                required
-                placeholder="admin@yourcompany.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full text-xs p-3.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-stone-950 text-stone-900 font-medium placeholder-stone-350"
-              />
-            </div>
+        <input
+          type="email"
+          required
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-stone-950"
+        />
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-mono text-stone-500 uppercase tracking-wider block font-bold">Password</label>
-                <button
-                  type="button"
-                  onClick={() => alert('Demo platform account triggers automatically. Enter any mock values to initiate environment.')}
-                  className="text-[9.5px] font-mono text-[#9D8055] hover:underline"
-                >
-                  Forgot password?
-                </button>
-              </div>
-              <input
-                type="password"
-                required
-                placeholder="••••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full text-xs p-3.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-stone-950 text-stone-900 font-mono placeholder-stone-350"
-              />
-            </div>
-          </div>
+        <input
+          type="password"
+          required
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-stone-950"
+        />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-stone-950 text-white rounded-xl text-xs font-bold font-sans hover:bg-stone-850 transition-all cursor-pointer shadow-xs disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            <span>{loading ? 'Decrypting Secure Vault...' : 'Login & Open Workspace'}</span>
-            {!loading && <ArrowRight className="w-3.5 h-3.5" />}
-          </button>
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
-          {/* Social login line */}
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-stone-100"></div>
-            <span className="flex-shrink mx-4 text-[9.5px] font-mono text-stone-300 uppercase">Or bypass validation</span>
-            <div className="flex-grow border-t border-stone-100"></div>
-          </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-xl bg-stone-950 py-3 text-sm font-semibold text-white disabled:bg-stone-300"
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const testEmail = 'founder@octo.ai';
-              setEmail(testEmail);
-              onLoginSuccess(testEmail);
-            }}
-            className="w-full py-3 bg-[#FCFCFA] hover:bg-stone-100 text-stone-800 border border-stone-200 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer flex items-center justify-center gap-2"
-          >
-            <span>Continue with Google</span>
-          </button>
-        </form>
-
-        {/* Footer info line list */}
-        <div className="space-y-4 pt-1">
-          <div className="flex items-center gap-2.5 text-xs text-stone-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span className="font-light leading-normal">Your company data stays private. Secure local environment.</span>
-          </div>
-
-          <p className="text-xs text-stone-500 text-center sm:text-left mt-2">
-            Don't have an enterprise workspace?{' '}
-            <button
-              onClick={onGoToSignup}
-              className="text-[#9D8055] font-semibold hover:underline"
-            >
-              Sign up today
-            </button>
-          </p>
-        </div>
-
-      </div>
-    </div>
+        <button
+          type="button"
+          onClick={() => router.push("/signup")}
+          className="w-full text-sm text-stone-500 hover:text-stone-950"
+        >
+          Create account
+        </button>
+      </form>
+    </main>
   );
 }
