@@ -10,6 +10,14 @@ import {
   ChevronLeft, ChevronRight, LayoutDashboard, Briefcase
 } from 'lucide-react';
 import { AIWorker, MockFile } from '@/types';
+import type {
+  ConnectedApp,
+  DashboardActivity,
+  DashboardApproval,
+  DashboardMetrics,
+  CompanyOption,
+  DashboardInitialData,
+} from '@/lib/supabase/dashboard';
 import Builder from './Builder';
 import AIWorkers from './AIWorkers';
 import Workflows from './Workflows';
@@ -23,120 +31,80 @@ import Approvals from './Approvals';
 interface DashboardProps {
   userEmail: string;
   onLogout: () => void;
+  companyId?: string;
+  initialData?: DashboardInitialData;
+  onAddActivity?: (text: string, worker: string) => void | Promise<void>;
+  onClearNotifications?: () => void | Promise<void>;
+  onResolveApproval?: (
+    approvalId: string,
+    status: 'approved' | 'rejected',
+    title: string,
+    worker: string
+  ) => void | Promise<void>;
+  onToggleApp?: (appName: string, connected: boolean) => void | Promise<void>;
+  onRefresh?: () => void | Promise<void>;
 }
 
-export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
+export default function Dashboard({
+  userEmail,
+  onLogout,
+  companyId,
+  initialData,
+  onAddActivity: onAddActivityProp,
+  onClearNotifications,
+  onResolveApproval,
+  onToggleApp: onToggleAppProp,
+}: DashboardProps) {
   // Navigation tabs list: Dashboard, Builder, AI Workers, Workflows, Teams, Files, Marketplace, Billing, Settings, Approvals
   const [activeTab, setActiveTab] = useState<'dashboard' | 'builder' | 'workers' | 'workflows' | 'teams' | 'files' | 'marketplace' | 'billing' | 'settings' | 'approvals'>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Interactive local states
-  const [companies, setCompanies] = useState<string[]>([
-    "Octo Workspace",
-    "Hearthstone Real Estate",
-    "FitPulse Gym SaaS",
-    "Vela Knits Brand"
-  ]);
-  const [activeCompany, setActiveCompany] = useState<string>("Octo Workspace");
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [activeCompany, setActiveCompany] = useState<string>("");
   const [showCompanyDropdown, setShowCompanyDropdown] = useState<boolean>(false);
 
-  const [notifications, setNotifications] = useState<string[]>([
-    "Atlas needs your approval on a supplier delivery adjustment draft.",
-    "Clara replied to customer email queries on refunds autonomously.",
-    "Valkyrie completed your weekly accounting reconciliation ledger draft."
-  ]);
+  const [notifications, setNotifications] = useState<string[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // SECTION 2 — WHAT’S HAPPENING STATE (Employees Working, NOT infrastructure)
-  const [workers, setWorkers] = useState<AIWorker[]>([
-    {
-      id: 'w-1',
-      name: 'Clara',
-      role: 'Support',
-      status: 'running', // running -> Working
-      avatarColor: 'bg-stone-100 text-stone-900 border-stone-200',
-      connectedApps: ['Gmail', 'Shopify'],
-      tasksCount: 148
-    },
-    {
-      id: 'w-2',
-      name: 'Valkyrie',
-      role: 'Finance',
-      status: 'running', // running -> Working
-      avatarColor: 'bg-stone-100 text-stone-900 border-stone-200',
-      connectedApps: ['Stripe', 'Notion'],
-      tasksCount: 84
-    },
-    {
-      id: 'w-3',
-      name: 'Atlas',
-      role: 'Operations',
-      status: 'paused', // paused -> Needs Approval
-      avatarColor: 'bg-[#FCFCFB] text-stone-900 border-stone-200',
-      connectedApps: ['Gmail', 'Slack'],
-      tasksCount: 61
-    },
-    {
-      id: 'w-4',
-      name: 'Synthesizer',
-      role: 'Marketing',
-      status: 'completed', // completed -> Finished/Standing By
-      avatarColor: 'bg-stone-50 text-stone-600 border-stone-100',
-      connectedApps: ['Notion', 'Slack'],
-      tasksCount: 104
+  const [workers, setWorkers] = useState<AIWorker[]>([]);
+  const [activities, setActivities] = useState<DashboardActivity[]>([]);
+  const [approvals, setApprovals] = useState<DashboardApproval[]>([]);
+  const [apps, setApps] = useState<ConnectedApp[]>([]);
+  const [files, setFiles] = useState<MockFile[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    agents: 0,
+    teams: 0,
+    workflows: 0,
+    approvals: 0,
+    datasets: 0,
+    marketplaceItems: 0,
+  });
+
+  useEffect(() => {
+    if (!initialData) return;
+    setWorkers(initialData.workers);
+    setFiles(initialData.files);
+    setApps(initialData.apps);
+    setActivities(initialData.activities);
+    setApprovals(initialData.approvals);
+    setNotifications(initialData.notifications);
+    setCompanies(initialData.companies);
+    setMetrics(initialData.metrics);
+    if (initialData.companies.length > 0) {
+      setActiveCompany(initialData.companies[0].name);
     }
-  ]);
+  }, [initialData]);
 
-  // SECTION 3 — RECENT WORK Completed Feed (Spacious, easy, clear)
-  const [activities, setActivities] = useState([
-    { id: 'act-1', text: 'Clara replied to customer email regarding return procedures', time: '5 mins ago', worker: 'Clara' },
-    { id: 'act-2', text: 'Valkyrie updated the weekly sales balance spreadsheet draft in Notion', time: '20 mins ago', worker: 'Valkyrie' },
-    { id: 'act-3', text: 'Synthesizer drafted three new promotional newsletter write-ups', time: '1 hour ago', worker: 'Synthesizer' },
-    { id: 'act-4', text: 'Atlas reviewed active shipping routes and flagged delayed supplier package', time: '2 hours ago', worker: 'Atlas' },
-    { id: 'act-5', text: 'Secure encryption keys verified for newly imported logistical document', time: '4 hours ago', worker: 'System' }
-  ]);
-
-  // SECTION 4 — PENDING APPROVALS Human interaction state
-  const [approvals, setApprovals] = useState([
-    {
-      id: 'appr-1',
-      worker: 'Atlas',
-      title: 'Review supplier message',
-      description: 'Supplier is requesting a 4-day shipping delay extension due to logistics backlog. Send standard warning response?',
-      actionLabel: 'Approve delay response'
-    },
-    {
-      id: 'appr-2',
-      worker: 'Clara',
-      title: 'Approve customer refund',
-      description: 'Trigger standard refund procedure for order #3398 ($149.00 USD) because shipping timeline exceeded guarantees.',
-      actionLabel: 'Approve refund'
-    },
-    {
-      id: 'appr-3',
-      worker: 'Clara',
-      title: 'Approve customer email reply',
-      description: 'Drafted professional response to enterprise account inquiry verifying custom integration parameters.',
-      actionLabel: 'Approve email dispatch'
+  const recordActivity = async (text: string, worker: string) => {
+    if (onAddActivityProp) {
+      await onAddActivityProp(text, worker);
+      return;
     }
-  ]);
-
-  // SECTION 5 — CONNECTED APPS Row with simple toggle connection
-  const [apps, setApps] = useState([
-    { name: 'Gmail', connected: true, desc: 'Dispatches custom emails and reads customer threads' },
-    { name: 'Slack', connected: true, desc: 'Notifies workspace chat loops of critical business events' },
-    { name: 'Shopify', connected: true, desc: 'Queries customer records and active shopping carts' },
-    { name: 'Notion', connected: true, desc: 'Keeps workspace wikis, marketing material, and meeting logs' },
-    { name: 'Stripe', connected: true, desc: 'Gathers balance settlements and ledger transaction flows' },
-    { name: 'Google Drive', connected: false, desc: 'Stores large archival compliance files and spreadsheets' }
-  ]);
-
-  // SECTION 6 — FILE ARCHIVES State
-  const [files, setFiles] = useState<MockFile[]>([
-    { name: 'refund_processing_policy_2026.pdf', size: '1.4 MB', type: 'PDF', uploadedAt: '10 mins ago' },
-    { name: 'supplier_contacts_shipping.xlsx', size: '18.2 MB', type: 'Spreadsheet', uploadedAt: '2 hours ago' },
-    { name: 'company_branding_guidelines.docx', size: '2.1 MB', type: 'Document', uploadedAt: 'Yesterday' }
-  ]);
+    setActivities((prev) => [
+      { id: `act-${Date.now()}`, text, time: 'Just now', worker },
+      ...prev,
+    ]);
+  };
 
   // Builder Custom Form State
   const [customWorkerName, setCustomWorkerName] = useState('');
@@ -146,24 +114,30 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
   const [formSuccess, setFormSuccess] = useState(false);
 
   // App toggle connector handler
-  const toggleAppConnector = (appName: string) => {
-    setApps(prev => prev.map(a => {
-      if (a.name === appName) {
-        const nextStatus = !a.connected;
-        // Post notification activity
-        setActivities(prevAct => [
-          {
-            id: `act-${Date.now()}`,
-            text: `Connection helper linked with ${appName} was ${nextStatus ? 'activated' : 'deactivated'}`,
-            time: 'Just now',
-            worker: 'System'
-          },
-          ...prevAct
-        ]);
-        return { ...a, connected: nextStatus };
-      }
-      return a;
-    }));
+  const toggleAppConnector = async (appName: string) => {
+    const current = apps.find((a) => a.name === appName);
+    const nextStatus = !(current?.connected ?? false);
+    if (onToggleAppProp && companyId) {
+      await onToggleAppProp(appName, nextStatus);
+      setApps((prev) =>
+        prev.map((a) =>
+          a.name === appName ? { ...a, connected: nextStatus } : a
+        )
+      );
+      return;
+    }
+    setApps((prev) =>
+      prev.map((a) => {
+        if (a.name === appName) {
+          void recordActivity(
+            `Connection helper linked with ${appName} was ${nextStatus ? 'activated' : 'deactivated'}`,
+            'System'
+          );
+          return { ...a, connected: nextStatus };
+        }
+        return a;
+      })
+    );
   };
 
   // Secure File Upload simulation
@@ -182,40 +156,33 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
       };
 
       setFiles(prev => [newFile, ...prev]);
-      setActivities(prevAct => [
-        {
-          id: `act-file-${Date.now()}`,
-          text: `Uploaded company file "${f.name}" securely. Parsed parameters localized into workspace vectors.`,
-          time: 'Just now',
-          worker: 'System'
-        },
-        ...prevAct
-      ]);
+      void recordActivity(
+        `Uploaded company file "${f.name}" securely. Parsed parameters localized into workspace vectors.`,
+        'System'
+      );
     }
   };
 
   // Handle Approvals
-  const handleAcceptApproval = (id: string, title: string, workerName: string) => {
-    setApprovals(prev => prev.filter(a => a.id !== id));
-    
-    // Add completed action activity log
-    setActivities(prev => [
-      {
-        id: `act-appr-${Date.now()}`,
-        text: `Approved action: ${title}. ${workerName} dispatched confirmation successfully.`,
-        time: 'Just now',
-        worker: workerName
-      },
-      ...prev
-    ]);
+  const handleAcceptApproval = async (id: string, title: string, workerName: string) => {
+    if (onResolveApproval) {
+      await onResolveApproval(id, 'approved', title, workerName);
+    } else {
+      setApprovals((prev) => prev.filter((a) => a.id !== id));
+      await recordActivity(
+        `Approved action: ${title}. ${workerName} dispatched confirmation successfully.`,
+        workerName
+      );
+    }
 
-    // Update worker status if they were standing by/paused
-    setWorkers(prev => prev.map(w => {
-      if (w.name === workerName) {
-        return { ...w, status: 'completed', tasksCount: w.tasksCount + 1 };
-      }
-      return w;
-    }));
+    setWorkers((prev) =>
+      prev.map((w) => {
+        if (w.name === workerName) {
+          return { ...w, status: 'completed', tasksCount: w.tasksCount + 1 };
+        }
+        return w;
+      })
+    );
   };
 
   // Custom AI Worker creation submission
@@ -234,15 +201,10 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
     };
 
     setWorkers(prev => [...prev, newW]);
-    setActivities(prev => [
-      {
-        id: `act-hired-${Date.now()}`,
-        text: `Hired custom worker ${customWorkerName} to automatically manage ${customWorkerSpeciality} channels`,
-        time: 'Just now',
-        worker: customWorkerName
-      },
-      ...prev
-    ]);
+    void recordActivity(
+      `Hired custom worker ${customWorkerName} to automatically manage ${customWorkerSpeciality} channels`,
+      customWorkerName
+    );
 
     // Reset inputs
     setCustomWorkerName('');
@@ -502,23 +464,18 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
 
                           <div className="max-h-40 overflow-y-auto space-y-1 py-1">
                             {companies.map((comp) => {
-                              const isActive = comp === activeCompany;
+                              const isActive = comp.name === activeCompany;
                               return (
                                 <button
-                                  key={comp}
+                                  key={comp.id}
                                   type="button"
                                   onClick={() => {
-                                    setActiveCompany(comp);
+                                    setActiveCompany(comp.name);
                                     setShowCompanyDropdown(false);
-                                    setActivities(prevAct => [
-                                      {
-                                        id: `act-comp-${Date.now()}`,
-                                        text: `Switched operational context to workspace department: "${comp}"`,
-                                        time: 'Just now',
-                                        worker: 'System'
-                                      },
-                                      ...prevAct
-                                    ]);
+                                    void recordActivity(
+                                      `Switched operational context to workspace department: "${comp.name}"`,
+                                      'System'
+                                    );
                                   }}
                                   className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                                     isActive 
@@ -526,7 +483,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                                       : 'text-stone-605 hover:bg-stone-50 hover:text-stone-955'
                                   }`}
                                 >
-                                  <span className="truncate">{comp}</span>
+                                  <span className="truncate">{comp.name}</span>
                                   {isActive && <span className="text-[8px] font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-100/50 px-1.5 py-0.5 rounded">Active</span>}
                                 </button>
                               );
@@ -539,17 +496,16 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                               onClick={() => {
                                 const name = prompt("Enter a new company or workspace name:");
                                 if (name && name.trim()) {
-                                  setCompanies(prev => [...prev, name.trim()]);
-                                  setActiveCompany(name.trim());
-                                  setActivities(prevAct => [
-                                    {
-                                      id: `act-cc-${Date.now()}`,
-                                      text: `Provisioned independent sandboxed workspace catalog: "${name.trim()}"`,
-                                      time: 'Just now',
-                                      worker: 'System'
-                                    },
-                                    ...prevAct
+                                  const trimmed = name.trim();
+                                  setCompanies((prev) => [
+                                    ...prev,
+                                    { id: `local-${Date.now()}`, name: trimmed },
                                   ]);
+                                  setActiveCompany(trimmed);
+                                  void recordActivity(
+                                    `Provisioned independent sandboxed workspace catalog: "${trimmed}"`,
+                                    'System'
+                                  );
                                 }
                                 setShowCompanyDropdown(false);
                               }}
@@ -610,7 +566,10 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                       <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                         <span className="font-semibold text-stone-900">Workspace updates</span>
                         <button 
-                          onClick={() => setNotifications([])} 
+                          onClick={() => {
+                            setNotifications([]);
+                            void onClearNotifications?.();
+                          }} 
                           className="text-[10px] text-stone-400 hover:text-stone-900 font-semibold"
                         >
                           Clear all
@@ -683,7 +642,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
               >
                 <Builder 
                   onAddWorkers={(newW) => setWorkers(prev => [...prev, ...newW])} 
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                   onAddFile={(newF) => setFiles(prev => [newF, ...prev])}
                   onToggleApp={(appName) => toggleAppConnector(appName)}
                   connectedApps={apps.filter(a => a.connected).map(a => a.name)}
@@ -709,7 +668,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                   }}
                   workersList={workers}
                   onAddWorkers={(newW) => setWorkers(prev => [...prev, ...newW])}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                   onAddFile={(newF) => setFiles(prev => [newF, ...prev])}
                   connectedApps={apps.filter(a => a.connected).map(a => a.name)}
                   companyFiles={files}
@@ -732,7 +691,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                   workersList={workers}
                   connectedApps={apps.filter(a => a.connected).map(a => a.name)}
                   companyFiles={files}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                   onSetActiveTab={(tab) => {
                     setActiveTab(tab);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -756,7 +715,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                   workersList={workers}
                   connectedApps={apps.filter(a => a.connected).map(a => a.name)}
                   companyFiles={files}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                   onSetActiveTab={(tab) => {
                     setActiveTab(tab);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -779,7 +738,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                 <Files 
                   companyFiles={files}
                   onSetCompanyFiles={setFiles}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                   onSetActiveTab={(tab) => {
                     setActiveTab(tab);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -805,7 +764,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                   onSetCompanyFiles={setFiles}
                   workersList={workers}
                   onSetWorkersList={setWorkers}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                   onSetActiveTab={(tab) => {
                     setActiveTab(tab);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -832,7 +791,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                     setActiveTab(tab);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                 />
               </motion.div>
             )}
@@ -860,7 +819,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                     setActiveTab(tab);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  onAddActivity={(txt, name) => setActivities(prev => [{ id: `act-${Date.now()}`, text: txt, time: 'Just now', worker: name }, ...prev])}
+                  onAddActivity={(txt, name) => { void recordActivity(txt, name); }}
                 />
               </motion.div>
             )}
@@ -886,84 +845,23 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
              ========================================================================= */}
           {activeTab === 'dashboard' && (
             <>
-              {/* =========================================================================
-                                     SECTION 1 — MAIN HERO
-              Headline: Your AI company is running.
-              Subheadline: AI workers handling support, finance, operations, customers, suppliers, reports, and everyday business tasks.
-              Buttons: Open Builder, Build AI Worker
-              Below tiny trust lines: 12 AI workers active • 8 apps connected • Private by default
-         ========================================================================= */}
-          <section className="text-left" id="section-1-hero">
-            <div className="max-w-3xl flex flex-col gap-6">
-              
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-stone-950 font-sans leading-tight">
-                Your AI company is running.
-              </h1>
-              
-              <p className="text-base sm:text-lg text-stone-500 font-light leading-relaxed max-w-2xl">
-                AI workers handling support, finance, operations, customers, suppliers, reports, and everyday business tasks.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-4 mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('builder');
-                    window.scrollTo({ top: 300, behavior: 'smooth' });
-                  }}
-                  className="bg-stone-900 hover:bg-stone-850 text-white font-semibold text-xs px-7 py-4 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-[0.98]"
-                  id="hero-open-builder-tab"
-                >
-                  <span>Open Builder</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('builder');
-                    window.scrollTo({ top: 300, behavior: 'smooth' });
-                  }}
-                  className="bg-white border border-stone-200 hover:bg-stone-50 text-stone-900 font-semibold text-xs px-7 py-4 rounded-xl shadow-xs cursor-pointer transition-all active:scale-[0.98]"
-                  id="hero-build-worker-tab"
-                >
-                  Build AI Worker
-                </button>
-              </div>
-
-              {/* Minimal simple trust status bullet string */}
-              <div className="pt-6 mt-2 flex flex-wrap items-center gap-2 text-xs font-mono text-stone-400 select-none">
-                <span className="font-semibold text-stone-500">12 AI workers active</span>
-                <span>•</span>
-                <span className="font-semibold text-stone-500">8 apps connected</span>
-                <span>•</span>
-                <span>Private by default</span>
-              </div>
-            </div>
-          </section>
-
-
-          {/* =========================================================================
-                                 SECTION 1.5 — COMPANY PORTFOLIO
-              Title: Company Portfolio
-              Subtitle: See how your AI company is doing.
-         ========================================================================= */}
-          <section className="space-y-8 animate-fade-in" id="section-company-portfolio">
+          <section className="space-y-8 animate-fade-in" id="section-workspace-metrics">
             <div className="border-b border-stone-100 pb-4">
-              <h3 className="text-xl font-bold tracking-tight text-stone-955 font-sans">Company Portfolio</h3>
-              <p className="text-xs text-stone-400 mt-1 leading-normal font-sans">See how your AI company is doing.</p>
+              <h3 className="text-xl font-bold tracking-tight text-stone-955 font-sans">Workspace metrics</h3>
+              <p className="text-xs text-stone-400 mt-1 leading-normal font-sans">Live counts from your company workspace.</p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6" id="portfolio-status-metric-grid">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6" id="workspace-status-metric-grid">
               {[
-                { title: "Revenue made", value: "₹42,500", desc: "Generated automatically" },
-                { title: "Customers", value: "128", desc: "Active business accounts" },
-                { title: "Days live", value: "37 days", desc: "Uptime tracking continuous" },
-                { title: "AI workers active", value: "6 active", desc: "Expert staff cycles" },
-                { title: "Work completed", value: "240 tasks", desc: "Inbox triage & files audited" }
-              ].map((card, i) => (
+                { title: "Agents", value: String(metrics.agents), desc: "AI workers in your company" },
+                { title: "Teams", value: String(metrics.teams), desc: "Active team configurations" },
+                { title: "Workflows", value: String(metrics.workflows), desc: "Automated business workflows" },
+                { title: "Approvals", value: String(metrics.approvals), desc: "Items in approval queue" },
+                { title: "Datasets", value: String(metrics.datasets), desc: "Structured data assets" },
+                { title: "Marketplace", value: String(metrics.marketplaceItems), desc: "Listed marketplace items" },
+              ].map((card) => (
                 <div 
-                  key={i} 
+                  key={card.title} 
                   className="bg-white border border-stone-200 p-6 rounded-2xl flex flex-col justify-between hover:border-stone-300 transition-all min-h-[140px]"
                 >
                   <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block p-0">
@@ -1093,6 +991,14 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
             </div>
 
             <div className="border border-stone-200/80 rounded-2xl devide-y divide-stone-100 bg-white overflow-hidden shadow-xs">
+              {activities.length === 0 ? (
+                <div className="p-10 text-center">
+                  <p className="text-sm font-bold text-stone-950">No recent activity</p>
+                  <p className="text-xs text-stone-400 mt-1 leading-relaxed">
+                    Activity from your agents and workflows will appear here.
+                  </p>
+                </div>
+              ) : (
               <div className="divide-y divide-stone-100">
                 {activities.map((act) => (
                   <div key={act.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
@@ -1112,6 +1018,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           </section>
 
@@ -1164,17 +1071,15 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                       <button
                         type="button"
                         onClick={() => {
-                          setApprovals(prev => prev.filter(x => x.id !== req.id));
-                          // add dismissal activity
-                          setActivities(prev => [
-                            {
-                              id: `act-skip-${Date.now()}`,
-                              text: `Bypassed or rejected authorization schedule: "${req.title}".`,
-                              time: 'Just now',
-                              worker: 'System'
-                            },
-                            ...prev
-                          ]);
+                          void (onResolveApproval
+                            ? onResolveApproval(req.id, 'rejected', req.title, req.worker)
+                            : (async () => {
+                                setApprovals((prev) => prev.filter((x) => x.id !== req.id));
+                                await recordActivity(
+                                  `Bypassed or rejected authorization schedule: "${req.title}".`,
+                                  'System'
+                                );
+                              })());
                         }}
                         className="bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 text-xs font-semibold px-4 py-3 rounded-xl transition-all active:scale-[0.97] cursor-pointer"
                         id={`btn-decline-${req.id}`}

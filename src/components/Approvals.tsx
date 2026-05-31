@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import type { ApprovalRecord } from '@/lib/supabase/approvals';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Sparkles, Mail, CreditCard, RotateCw, FileCheck2, Trash2, ArrowUpRight, Check, X, AlertCircle } from 'lucide-react';
 
@@ -18,100 +19,62 @@ interface ApprovalItem {
 }
 
 interface ApprovalsProps {
+  approvals?: ApprovalRecord[];
   onAddActivity?: (activityText: string, workerName: string) => void;
   onSetActiveTab?: (tab: string) => void;
+  onUpdateApproval?: (
+    id: string,
+    status: "approved" | "rejected"
+  ) => void | Promise<void>;
 }
 
-export default function Approvals({ onAddActivity, onSetActiveTab }: ApprovalsProps) {
+export default function Approvals({
+  approvals: approvalsProp,
+  onAddActivity,
+  onSetActiveTab,
+  onUpdateApproval,
+}: ApprovalsProps) {
   const [successToast, setSuccessToast] = useState('');
   const triggerToast = (text: string) => {
     setSuccessToast(text);
     setTimeout(() => setSuccessToast(''), 4000);
   };
 
-  const [approvals, setApprovals] = useState<ApprovalItem[]>([
-    {
-      id: 'app-1',
-      title: 'Supplier email waiting approval',
-      workerName: 'Atlas',
-      appName: 'Gmail',
-      timeRequested: '10 minutes ago',
-      type: 'email',
-      status: 'pending',
-      description: 'Drafted compensation notification for supplier #8821 regarding custom component latency.',
-      previewContent: 'To: supply-chain@nordic-mfg.com\nSubject: Delayed Ingress Mitigation Re: #8821\n\nDear supply-chain,\n\nWe noted an auxiliary overhead exceeding 2.4 days for Q1 batches. We would like to register a credit adjustment request of $850.00 to correct ledger alignment. Let us know if you accept.\n\nWarm regards,\nAtlas Autopilot',
-      icon: '✉️'
-    },
-    {
-      id: 'app-2',
-      title: 'Customer refund waiting approval',
-      workerName: 'Clara',
-      appName: 'Stripe',
-      timeRequested: '35 minutes ago',
-      type: 'refund',
-      status: 'pending',
-      description: 'Stripe customer balance reimbursement for order #1109 due to long transit delay.',
-      previewContent: 'Reimbursement action payload:\n\n- Customer ID: cus_982187AA\n- Balance Target: $149.00 USD\n- Destination: Ending in ...9012\n- Trigger rule check: verified_delay_checked',
-      icon: '💳'
-    },
-    {
-      id: 'app-3',
-      title: 'Social post waiting approval',
-      workerName: 'Valkyrie',
-      appName: 'Marketplace',
-      timeRequested: '1 hour ago',
-      type: 'social_post',
-      status: 'pending',
-      description: 'Scheduled release of custom AI Workers blueprint to public library catalog.',
-      previewContent: 'Release catalog parameters:\n\n- Package Label: Clara Support Automation Blueprint v2.1\n- Description: Pre-configured continuous polling loops for Gmail/Shopify. Ready-to-build layout.\n- Pricing index: BYOK Private Free tier',
-      icon: '🌍'
-    },
-    {
-      id: 'app-4',
-      title: 'Inventory update waiting approval',
-      workerName: 'Atlas',
-      appName: 'Shopify',
-      timeRequested: '3 hours ago',
-      type: 'inventory',
-      status: 'pending',
-      description: 'Automated catalog sync: Increase batch capacity index based on supplier confirm alert.',
-      previewContent: 'Catalog sync targets:\n\n- Item SKU: SV-99801 (Nordic Leather Desk Protector)\n- Previous stock: 12 units available\n- Proposed adjustment stock: +45 units (Re-routed import batch #4)',
-      icon: '📦'
-    },
-    {
-      id: 'app-5',
-      title: 'Payment update waiting approval',
-      workerName: 'Valkyrie',
-      appName: 'Stripe',
-      timeRequested: '5 hours ago',
-      type: 'payment',
-      status: 'pending',
-      description: 'Audit reconciliation update. Re-index pending wire confirmations into active balance.',
-      previewContent: 'Ledger correction index:\n\n- Transaction Identifier: tr_wire_82811A\n- Amount mapped: $4,923.00 USD\n- Reconciled target company account: Octo Dev Org',
-      icon: '📈'
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+
+  useEffect(() => {
+    if (approvalsProp) {
+      setApprovals(approvalsProp as ApprovalItem[]);
     }
-  ]);
+  }, [approvalsProp]);
 
-  const handleAction = (id: string, action: 'approved' | 'rejected') => {
-    setApprovals(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, status: action };
-      }
-      return item;
-    }));
-
-    const item = approvals.find(x => x.id === id);
+  const handleAction = async (id: string, action: 'approved' | 'rejected') => {
+    const item = approvals.find((x) => x.id === id);
     if (!item) return;
+
+    if (onUpdateApproval) {
+      await onUpdateApproval(id, action);
+    }
+
+    setApprovals((prev) =>
+      prev.map((entry) => (entry.id === id ? { ...entry, status: action } : entry))
+    );
 
     if (action === 'approved') {
       triggerToast(`Approved: ${item.title}`);
       if (onAddActivity) {
-        onAddActivity(`Approved and dispatched ${item.title} requests for worker ${item.workerName}.`, item.workerName);
+        onAddActivity(
+          `Approved and dispatched ${item.title} requests for worker ${item.workerName}.`,
+          item.workerName
+        );
       }
     } else {
       triggerToast(`Rejected: ${item.title}`);
       if (onAddActivity) {
-        onAddActivity(`Rejected and cancelled action: "${item.title}" from worker ${item.workerName}.`, item.workerName);
+        onAddActivity(
+          `Rejected and cancelled action: "${item.title}" from worker ${item.workerName}.`,
+          item.workerName
+        );
       }
     }
   };
@@ -187,6 +150,14 @@ export default function Approvals({ onAddActivity, onSetActiveTab }: ApprovalsPr
         </div>
 
         <div className="space-y-8">
+          {approvals.length === 0 ? (
+            <div className="border border-stone-200 p-10 rounded-2xl text-center bg-white">
+              <p className="text-sm font-bold text-stone-950">No approvals in queue</p>
+              <p className="text-xs text-stone-400 mt-1 leading-relaxed">
+                When agents request human confirmation, items will appear here.
+              </p>
+            </div>
+          ) : null}
           {approvals.map(item => (
             <div 
               key={item.id} 
