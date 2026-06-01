@@ -116,11 +116,7 @@ export default function Settings({
   // ----------------------------------------------------
   // SECTION 4 — AI MODEL KEYS STATE
   // ----------------------------------------------------
-  const [modelKeys, setModelKeys] = useState<ModelKeyConfig[]>([
-    { id: 'mk-1', name: 'OpenAI (GPT-4o & o1)', provider: 'OpenAI', connected: true, mask: 'sk-proj-...81a2', inputValue: '••••••••••••••••••••' },
-    { id: 'mk-2', name: 'Anthropic (Claude 3.5 Sonnet)', provider: 'Claude', connected: true, mask: 'sk-ant-...f901', inputValue: '••••••••••••••••••••' },
-    { id: 'mk-3', name: 'Google (Gemini 1.5 Pro)', provider: 'Gemini', connected: true, mask: 'gemini-...4fa2', inputValue: '••••••••••••••••••••' }
-  ]);
+  const [modelKeys, setModelKeys] = useState<ModelKeyConfig[]>([]);
 
   const [newKeyProvider, setNewKeyProvider] = useState('');
   const [newKeySecret, setNewKeySecret] = useState('');
@@ -719,7 +715,7 @@ export default function Settings({
         </div>
 
         <p className="text-xs text-stone-500 max-w-2xl leading-relaxed">
-          Manage integrations linked dynamically to Clara, Valkyrie, or custom workers. Apps enable automated reading and action loops.
+          Manage integrations linked dynamically to your AI workers. Apps enable automated reading and action loops.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-2">
@@ -833,7 +829,7 @@ export default function Settings({
             <div className="space-y-1">
               <span className="text-xs font-bold text-stone-950">Require Approval Before Dispatched Emails</span>
               <p className="text-[11px] text-stone-500 font-light leading-normal">
-                Prevents accidental autonomous email transmissions. Integrates human workspace checks before Valkyrie or Clara replies trigger.
+                Prevents accidental autonomous email transmissions. Integrates human workspace checks before worker replies trigger.
               </p>
             </div>
             

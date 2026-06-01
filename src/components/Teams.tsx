@@ -11,6 +11,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { AIWorker, MockFile } from '@/types';
+import { useCompanyId } from '@/lib/use-company-id';
+import { fetchTeams, type TeamRecord } from '@/lib/supabase/teams';
+import { fetchActivityLogs } from '@/lib/supabase/activity';
+import { fetchWorkflows } from '@/lib/supabase/workflows';
 
 interface TeamsProps {
   workersList: AIWorker[];
@@ -53,99 +57,52 @@ export default function Teams({
   onAddActivity,
   onSetActiveTab 
 }: TeamsProps) {
-  
-  // SECTION 7 — ACTIVE TEAMS Initial dataset including requested presets
-  const [teams, setTeams] = useState<TeamItem[]>([
-    {
-      id: 'team-support',
-      name: 'Customer Support Team',
-      description: 'Handles day-to-day client support threads, customer service emails, and customer follow-ups within private containers.',
-      workers: [
-        { name: 'Clara', role: 'Support Agent', responsibilities: 'replies to customer product queries' },
-        { name: 'Refund Worker', role: 'Support Specialist', responsibilities: 'handles refund requests autonomously' },
-        { name: 'Escalation Worker', role: 'Support Lead', responsibilities: 'sends difficult cases to the workspace owner' }
-      ],
-      apps: ['Gmail', 'Shopify', 'Slack'],
-      files: ['refund_processing_policy_2026.pdf', 'customer_list.csv'],
-      status: 'Needs Approval',
-      approvalRule: 'Ask before sending refunds',
-      currentWork: 'Support team preparing feedback responses to order queries.',
-      tasks: ['Reply to customers', 'Escalate complaints', 'Draft refund responses', 'Update support sheet']
-    },
-    {
-      id: 'team-finance',
-      name: 'Finance Team',
-      description: 'Monitors ledger updates, aggregates raw Stripe payouts, and compiles audit reports safely inside our sandbox.',
-      workers: [
-        { name: 'Valkyrie', role: 'Finance Auditor', responsibilities: 'checks Stripe payouts against Notion registries' },
-        { name: 'Spreadsheet Specialist', role: 'Ledger Assistant', responsibilities: 'maintains company balance sheets' }
-      ],
-      apps: ['Stripe', 'Notion', 'Google Drive'],
-      files: ['supplier_contacts_shipping.xlsx'],
-      status: 'Working',
-      approvalRule: 'Ask before finalizing invoice files',
-      currentWork: 'Finance team compiling weekly accounting reconciliation spreadsheets.',
-      tasks: ['Tally payout receipts', 'Log transacting receipts', 'Flag ledger exceptions']
-    },
-    {
-      id: 'team-marketing',
-      name: 'Marketing Team',
-      description: 'Drafts newsletter briefs, plans brand communications, and broadcasts approved announcements to channels.',
-      workers: [
-        { name: 'Synthesizer', role: 'Marketing Specialist', responsibilities: 'writes copy guidelines and formats outreach newsletters' },
-        { name: 'Copywriter Specialist', role: 'Copy Producer', responsibilities: 'crafts promotional drafts and client alerts' }
-      ],
-      apps: ['Notion', 'Slack'],
-      files: ['company_branding_guidelines.docx'],
-      status: 'Finished',
-      approvalRule: 'Approve newsletter blasts manually',
-      currentWork: 'Marketing team finished scheduling promotional cycles.',
-      tasks: ['Craft news drafts', 'Plan outreach calendar', 'Format custom newsletters']
-    },
-    {
-      id: 'team-supplier',
-      name: 'Supplier Team',
-      description: 'Coordinates active transit route timelines and emails cargo houses regarding backlogs, updating reference files.',
-      workers: [
-        { name: 'Atlas', role: 'Logistics Analyst', responsibilities: 'coordinates transit backlogs and shipment exceptions' },
-        { name: 'Supplier Manager', role: 'Logistics Lead', responsibilities: 'replies to supplier backlogs and transport delays' }
-      ],
-      apps: ['Gmail', 'Slack', 'Google Drive'],
-      files: ['supplier_contacts_shipping.xlsx'],
-      status: 'Working',
-      approvalRule: 'Alert workspace coordinator on delays',
-      currentWork: 'Supplier team flagging cargo delays for supply chain inventory metrics.',
-      tasks: ['Send transit inquiries', 'Check customs tables', 'Coordinate transport backlogs']
-    },
-    {
-      id: 'team-operations',
-      name: 'Operations Team',
-      description: 'Synchronizes product inventory levels and processes orders, posting automated logs to Slack channels.',
-      workers: [
-        { name: 'Operations specialist', role: 'Inventory lead', responsibilities: 'coordinates stock count alignment' },
-        { name: 'Atlas', role: 'Operations Assistant', responsibilities: 'updates spreadsheets and inventory rows' }
-      ],
-      apps: ['Shopify', 'Slack', 'Notion'],
-      files: ['supplier_database_2026.csv'],
-      status: 'Waiting',
-      approvalRule: 'Always double-check pricing differences',
-      currentWork: 'Operations standby. Awaiting order queue inventory synchronization parameters.',
-      tasks: ['Update inventory levels', 'Verify purchase lists', 'Triage cargo logs']
-    }
-  ]);
+  const { companyId } = useCompanyId();
 
-  // Selected team index for section-specific updates
-  const [selectedTeamIdForWorkers, setSelectedTeamIdForWorkers] = useState<string>('team-support');
-  const [selectedTeamIdForWorkflows, setSelectedTeamIdForWorkflows] = useState<string>('team-support');
+  const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [selectedTeamIdForWorkers, setSelectedTeamIdForWorkers] = useState<string>('');
+  const [selectedTeamIdForWorkflows, setSelectedTeamIdForWorkflows] = useState<string>('');
 
-  // Interactive Live Activity state
-  const [logsList, setLogsList] = useState([
-    { id: 'log-1', text: 'Support Team replied to customer thread regard billing', time: '5 mins ago', dept: 'Customer Support' },
-    { id: 'log-2', text: 'Finance Team matching payouts to Stripe spreadsheets', time: '12 mins ago', dept: 'Finance' },
-    { id: 'log-3', text: 'Supplier Team drafted logistics email to transit depot', time: '1 hour ago', dept: 'Supplier' },
-    { id: 'log-4', text: 'Marketing Team scheduled upcoming product feature brief', time: '2 hours ago', dept: 'Marketing' },
-    { id: 'log-5', text: 'Operations Team updated warehouse inventory count columns', time: '4 hours ago', dept: 'Operations' }
-  ]);
+  useEffect(() => {
+    if (!companyId) return;
+    fetchTeams(companyId).then((rows: TeamRecord[]) => {
+      const mapped: TeamItem[] = rows.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        workers: t.workers,
+        apps: t.apps,
+        files: t.files,
+        status: t.status,
+        approvalRule: t.approvalRule,
+        currentWork: t.currentWork,
+        tasks: t.tasks,
+      }));
+      setTeams(mapped);
+      if (mapped.length > 0) {
+        setSelectedTeamIdForWorkers(mapped[0].id);
+        setSelectedTeamIdForWorkflows(mapped[0].id);
+      }
+    });
+  }, [companyId]);
+
+  const [logsList, setLogsList] = useState<
+    { id: string; text: string; time: string; dept: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchActivityLogs(companyId, 10).then((logs) =>
+      setLogsList(
+        logs.map((l) => ({
+          id: l.id,
+          text: l.text,
+          time: l.time,
+          dept: l.worker,
+        }))
+      )
+    );
+  }, [companyId]);
 
   // SECTION 1 — TEAM BUILDER CHAT
   const [chatInput, setChatInput] = useState('');
@@ -153,17 +110,21 @@ export default function Teams({
   const [voiceFinished, setVoiceFinished] = useState(false);
   const [draftedTeam, setDraftedTeam] = useState<any | null>(null);
   const [uploadFeedback, setUploadFeedback] = useState('');
-  const [localFiles, setLocalFiles] = useState<MockFile[]>([
-    { name: 'support-policy.pdf', size: '1.2 MB', type: 'PDF', uploadedAt: 'Just now' },
-    { name: 'refund-rules.pdf', size: '640 KB', type: 'PDF', uploadedAt: 'Just now' },
-    { name: 'customer-list.csv', size: '4.8 MB', type: 'CSV', uploadedAt: 'Just now' },
-    { name: 'supplier-list_2026.csv', size: '12 MB', type: 'CSV', uploadedAt: 'Just now' },
-    { name: 'financial-blueprint.json', size: '110 KB', type: 'JSON', uploadedAt: 'Just now' },
-    { name: 'company_SOP.docx', size: '2.5 MB', type: 'Document', uploadedAt: 'Just now' }
-  ]);
+  const [localFiles, setLocalFiles] = useState<MockFile[]>([]);
 
-  // SECTION 3 — CONNECT AI WORKERS Add existing worker form
-  const [chooseExistingWorker, setChooseExistingWorker] = useState<string>(workersList && workersList.length > 0 ? workersList[0].name : 'Clara');
+  useEffect(() => {
+    setLocalFiles(companyFiles);
+  }, [companyFiles]);
+
+  const [chooseExistingWorker, setChooseExistingWorker] = useState<string>(
+    workersList && workersList.length > 0 ? workersList[0].name : ''
+  );
+
+  useEffect(() => {
+    if (workersList.length > 0 && !chooseExistingWorker) {
+      setChooseExistingWorker(workersList[0].name);
+    }
+  }, [workersList, chooseExistingWorker]);
   const [existingWorkerRole, setExistingWorkerRole] = useState('');
   const [existingWorkerResponsible, setExistingWorkerResponsible] = useState('');
 
@@ -175,6 +136,42 @@ export default function Teams({
   // SECTION 4 — WORKFLOW TESTING SIMULATION
   const [workflowStatus, setWorkflowStatus] = useState<'idle' | 'step1' | 'step2' | 'step3' | 'step4' | 'success'>('idle');
   const [testingWorkflowId, setTestingWorkflowId] = useState<string>('');
+  const [teamWorkflows, setTeamWorkflows] = useState<
+    {
+      id: string;
+      trigger: string;
+      goal: string;
+      steps: { label: string; detail: string; worker: string }[];
+    }[]
+  >([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchWorkflows(companyId).then((rows) => {
+      const stepLabels = ['Triage', 'Process', 'Review', 'Complete'];
+      setTeamWorkflows(
+        rows.map((w) => {
+          const assignees =
+            w.workers.length >= 4
+              ? w.workers.slice(0, 4)
+              : [
+                  ...w.workers,
+                  ...Array(Math.max(0, 4 - w.workers.length)).fill('Workspace'),
+                ];
+          return {
+            id: w.id,
+            trigger: w.description || w.humanWording || w.name,
+            goal: w.humanWording || w.name,
+            steps: assignees.map((worker, i) => ({
+              label: stepLabels[i] ?? `Step ${i + 1}`,
+              detail: w.description || 'Execute workflow step',
+              worker,
+            })),
+          };
+        })
+      );
+    });
+  }, [companyId]);
 
   // Action messages
   const [successMsg, setSuccessMsg] = useState('');
@@ -205,12 +202,12 @@ export default function Teams({
         name: "Customer Support Team",
         description: "Assists customer requests, verifies payments, coordinates billing issues, and updates customer-facing sheets.",
         workers: [
-          { name: "Support Worker", role: "Replies to customers", responsibilities: "drafts polite, accurate responses to common product issues" },
-          { name: "Refund Worker", role: "Verifies checkout payments", responsibilities: "checks Stripe transaction list before refunding carts" },
-          { name: "Escalation Worker", role: "Handles complex exceptions", responsibilities: "moves challenging inquiries immediately to owner dashboard" }
+          { name: "Support Specialist", role: "Replies to customers", responsibilities: "drafts polite, accurate responses to common product issues" },
+          { name: "Refund Specialist", role: "Verifies checkout payments", responsibilities: "checks transaction list before refunding carts" },
+          { name: "Escalation Specialist", role: "Handles complex exceptions", responsibilities: "moves challenging inquiries immediately to owner dashboard" }
         ],
-        apps: ["Gmail", "Slack", "Shopify", "Stripe"],
-        files: ["support-policy.pdf", "refund-rules.pdf", "customer-list.csv"],
+        apps: connectedApps.length > 0 ? connectedApps : [],
+        files: companyFiles.map((f) => f.name).slice(0, 3),
         approvals: [
           "Ask before sending product refunds",
           "Ask before sending custom price offer replies"
@@ -220,14 +217,14 @@ export default function Teams({
     } else if (text.includes('finance') || text.includes('bill') || text.includes('report') || text.includes('invoice')) {
       result = {
         name: "Finance Department Team",
-        description: "Reconciles Stripe balances, tracks customer payout receipts, and compiles compliant business tables.",
+        description: "Reconciles balances, tracks customer payout receipts, and compiles compliant business tables.",
         workers: [
           { name: "Ledger Worker", role: "Payout log checker", responsibilities: "scans recent payment receipts for oddities" },
           { name: "Spreadsheet Specialist", role: "Accounting formatter", responsibilities: "enters balanced data lines inside Google Sheets sheets" },
           { name: "Compliance Assistant", role: "Audit evaluator", responsibilities: "validates company guidelines against standard receipts" }
         ],
-        apps: ["Stripe", "Notion", "Google Drive"],
-        files: ["financial-blueprint.json", "supplier_contacts_shipping.xlsx"],
+        apps: connectedApps.length > 0 ? connectedApps : [],
+        files: companyFiles.map((f) => f.name).slice(0, 3),
         approvals: [
           "Ask before modifying core accounting files",
           "Ask before posting logs if totals mismatch sheet values"
@@ -243,8 +240,8 @@ export default function Teams({
           { name: "Supplier Liaison", role: "Depot communications", responsibilities: "emails suppliers on package arrival updates and backlog items" },
           { name: "Operations Coordinator", role: "Database updates", responsibilities: "logs updated container lists inside company database templates" }
         ],
-        apps: ["Gmail", "Slack", "Google Drive", "Shopify"],
-        files: ["supplier-list_2026.csv", "cargo_schedules.pdf"],
+        apps: connectedApps.length > 0 ? connectedApps : [],
+        files: companyFiles.map((f) => f.name).slice(0, 3),
         approvals: [
           "Request approval before labeling supplier dispatch as late",
           "Alert owner on critical freight delay alerts"
@@ -258,10 +255,10 @@ export default function Teams({
         workers: [
           { name: "Brand Copywriter", role: "Copy writing", responsibilities: "composes warm messaging templates for news letters" },
           { name: "Editor Specialist", role: "Guidelines checker", responsibilities: "reviews copy drafts for brand style alignment" },
-          { name: "Publisher Specialist", role: "Notification scheduler", responsibilities: "places final briefs inside Notion and schedules alerts" }
+          { name: "Publisher Specialist", role: "Notification scheduler", responsibilities: "places final briefs and schedules alerts" }
         ],
-        apps: ["Notion", "Slack", "GitHub"],
-        files: ["company_branding_guidelines.docx", "market_demographics.pdf"],
+        apps: connectedApps.length > 0 ? connectedApps : [],
+        files: companyFiles.map((f) => f.name).slice(0, 3),
         approvals: [
           "Request authorization before firing public bulletins",
           "Approve custom timeline scheduling dates"
@@ -279,8 +276,8 @@ export default function Teams({
           { name: "Team Lead Assistant", role: "Operations coordinator", responsibilities: "coordinates shared assets and flags notifications" },
           { name: "Data Specialist", role: "File logger assistant", responsibilities: "archives reports, updates sheets, and fills invoices" }
         ],
-        apps: ["Gmail", "Notion", "Slack"],
-        files: ["company_SOP.docx"],
+        apps: connectedApps.length > 0 ? connectedApps : [],
+        files: companyFiles.map((f) => f.name).slice(0, 3),
         approvals: ["Get permission before making crucial spreadsheet updates"],
         tasks: ["Evaluate incoming reports", "Draft project logs", "Sync team files"]
       };
@@ -498,7 +495,7 @@ export default function Teams({
   };
 
   // Select team helper for workflows
-  const activeWorkflowTeam = teams.find(t => t.id === selectedTeamIdForWorkflows) || teams[0];
+  const activeWorkflowTeam = teams.find(t => t.id === selectedTeamIdForWorkflows) ?? teams[0];
 
   return (
     <div className="space-y-24 py-4" id="ai-departments-main-module">
@@ -580,7 +577,7 @@ export default function Teams({
                 },
                 {
                   label: "Create a finance team for reports and invoices.",
-                  desc: "Builds a dedicated billing division linking Stripe logs and Notion ledgers."
+                  desc: "Builds a dedicated billing division linking payment logs and ledgers."
                 },
                 {
                   label: "Build a supplier team to handle emails and inventory.",
@@ -588,7 +585,7 @@ export default function Teams({
                 },
                 {
                   label: "Create a marketing team for content and posts.",
-                  desc: "Unites copywriters and checkers scheduling news drafts over Notion."
+                  desc: "Unites copywriters and checkers scheduling news drafts."
                 }
               ].map((preset, idx) => (
                 <button
@@ -886,13 +883,13 @@ export default function Teams({
                     onChange={(e) => setChooseExistingWorker(e.target.value)}
                     className="w-full text-xs bg-stone-50 border border-stone-200 p-3 rounded-lg focus:outline-none"
                   >
-                    {workersList && workersList.map((w) => (
-                      <option key={w.id} value={w.name}>{w.name} ({w.role})</option>
-                    ))}
-                    <option value="Clara">Clara (Support specialist)</option>
-                    <option value="Atlas">Atlas (Operations specialist)</option>
-                    <option value="Valkyrie">Valkyrie (Finance specialist)</option>
-                    <option value="Synthesizer">Synthesizer (Marketing specialist)</option>
+                    {workersList && workersList.length > 0 ? (
+                      workersList.map((w) => (
+                        <option key={w.id} value={w.name}>{w.name} ({w.role})</option>
+                      ))
+                    ) : (
+                      <option value="">No workers available</option>
+                    )}
                   </select>
                 </div>
 
@@ -1014,7 +1011,9 @@ export default function Teams({
               <Sliders className="w-5 h-5 text-stone-900 shrink-0" />
               <div className="text-left">
                 <span className="text-[10px] font-bold text-stone-400 uppercase font-mono block">RUNNING INTEGRATED TRIGGERS</span>
-                <span className="text-sm font-bold text-stone-950">Active Workflows for {activeWorkflowTeam.name}</span>
+                <span className="text-sm font-bold text-stone-950">
+                  Active Workflows{activeWorkflowTeam ? ` for ${activeWorkflowTeam.name}` : ''}
+                </span>
               </div>
             </div>
 
@@ -1037,42 +1036,14 @@ export default function Teams({
 
           {/* Workflow Step Diagrams */}
           <div className="space-y-8">
+            {teamWorkflows.length === 0 ? (
+              <div className="py-12 text-center border border-dashed border-stone-200 rounded-2xl bg-stone-50/50">
+                <p className="text-sm font-bold text-stone-950">No workflows yet.</p>
+                <p className="text-xs text-stone-500 mt-1">Create your first workflow to see execution steps here.</p>
+              </div>
+            ) : (
             <div className="block space-y-6">
-              {[
-                {
-                  id: 'wf-1',
-                  trigger: 'Incoming customer query arrives in inbox',
-                  steps: [
-                    { label: 'Triage Stage', detail: 'Support Worker evaluates the request logic', worker: 'Support Worker' },
-                    { label: 'Draft reply', detail: 'Refund Worker drafts response from policy PDFs', worker: 'Refund Worker' },
-                    { label: 'Consent checkpoint', detail: 'Workspace Admin reviews draft for approval', worker: 'Owner' },
-                    { label: 'Dispatch', detail: 'Secure email sent automatically through Gmail', worker: 'Gmail Portal' }
-                  ],
-                  goal: 'processed incoming customer refund claims'
-                },
-                {
-                  id: 'wf-2',
-                  trigger: 'Supplier sends price update or shipment list changes',
-                  steps: [
-                    { label: 'Document Import', detail: 'Logistics Analyst parses pricing list spreadsheet', worker: 'Logistics Analyst' },
-                    { label: 'Update files', detail: 'Supplier Manager writes updated counts to CSV', worker: 'Supplier Manager' },
-                    { label: 'Ledger Audit', detail: 'Finance Auditor updates transaction balancing', worker: 'Finance Auditor' },
-                    { label: 'Archival notification', detail: 'Notifies Slack company channel of inventory changes', worker: 'Slack Portal' }
-                  ],
-                  goal: 'synchronized supplier price adjustments across inventories'
-                },
-                {
-                  id: 'wf-3',
-                  trigger: 'New order logged inside checkout portal queue',
-                  steps: [
-                    { label: 'Verify cart details', detail: 'Operations Specialist crosscheck order price exceptions', worker: 'Operations Specialist' },
-                    { label: 'Stock subtraction', detail: 'Operations Assistant updates database files', worker: 'Operations Assistant' },
-                    { label: 'Owner update log', detail: 'Finance Specialist reconciles transactional invoice logs', worker: 'Finance Specialist' },
-                    { label: 'Tally done', detail: 'Post success markers safely into dashboard audit logs', worker: 'Workspace Board' }
-                  ],
-                  goal: 'fulfilled order stocks and posted notifications on Slack channels'
-                }
-              ].map((flow, num) => {
+              {teamWorkflows.map((flow, num) => {
                 const isActiveTesting = testingWorkflowId === flow.id;
                 return (
                   <div key={flow.id} className="p-6 border border-stone-250 bg-[#FCFCFA] rounded-2xl space-y-4 transition-all hover:border-stone-400">
@@ -1088,8 +1059,8 @@ export default function Teams({
 
                       <button
                         type="button"
-                        onClick={() => handleTestWorkflow(flow.id, activeWorkflowTeam.name, flow.goal)}
-                        disabled={workflowStatus !== 'idle'}
+                        onClick={() => handleTestWorkflow(flow.id, activeWorkflowTeam?.name ?? 'Team', flow.goal)}
+                        disabled={workflowStatus !== 'idle' || !activeWorkflowTeam}
                         className={`text-[10px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer select-none border transition-all ${
                           isActiveTesting
                             ? 'bg-[#FCFAF2] border-amber-300 text-amber-800'
@@ -1184,6 +1155,7 @@ export default function Teams({
                 );
               })}
             </div>
+            )}
           </div>
 
         </div>
@@ -1199,38 +1171,36 @@ export default function Teams({
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          {[
-            { name: 'Gmail', icon: Mail, desc: 'Dispatches custom emails', active: true },
-            { name: 'Slack', icon: MessageSquare, desc: 'Posts channel activity updates', active: true },
-            { name: 'Shopify', icon: ShoppingCart, desc: 'Examines active checkout orders', active: true },
-            { name: 'Stripe', icon: DollarSign, desc: 'Monitors payout settlements', active: true },
-            { name: 'Notion', icon: FileText, desc: 'Hosts company internal logs', active: true },
-            { name: 'Google Drive', icon: Database, desc: 'Retrieves shared spreadsheets', active: true },
-            { name: 'GitHub', icon: FolderGit, desc: 'Checks log commit repositories', active: true },
-            { name: 'Calendar', icon: CalendarIcon, desc: 'Coordinates outreach timelines', active: true },
-          ].map((app) => (
+          {connectedApps.length === 0 ? (
+            <div className="col-span-full border border-stone-200 p-8 rounded-2xl text-center bg-white">
+              <p className="text-sm font-bold text-stone-950">No connected apps yet.</p>
+              <p className="text-xs text-stone-400 mt-1">Connect integrations in Settings.</p>
+            </div>
+          ) : (
+          connectedApps.map((appName) => (
             <div 
-              key={app.name} 
+              key={appName} 
               className="p-4 bg-white border border-stone-200 rounded-xl space-y-3.5 text-center flex flex-col justify-between"
             >
               <div className="space-y-2">
                 <div className="mx-auto w-8 h-8 rounded-lg bg-stone-50 border border-stone-200/60 flex items-center justify-center text-stone-704">
-                  <app.icon className="w-4 h-4" />
+                  <Layers className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-bold text-stone-950 block">{app.name}</span>
-                <span className="text-[10px] text-stone-450 leading-tight block truncate" title={app.desc}>
-                  {app.desc}
+                <span className="text-xs font-bold text-stone-950 block">{appName}</span>
+                <span className="text-[10px] text-stone-450 leading-tight block truncate">
+                  Connected integration
                 </span>
               </div>
 
               <div className="pt-2 border-t border-stone-100 flex items-center justify-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${app.active ? 'bg-emerald-500' : 'bg-stone-300'}`} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span className="text-[9px] uppercase tracking-wider font-mono font-bold text-stone-400">
-                  {app.active ? 'Approved' : 'Deactivated'}
+                  Connected
                 </span>
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
       </section>
 
@@ -1336,8 +1306,9 @@ export default function Teams({
 
         <div className="space-y-8">
           {teams.length === 0 ? (
-            <div className="p-12 border border-stone-200 bg-white text-center rounded-2xl text-xs italic text-stone-400 font-sans">
-              No active AI departments running inside the workspace. Use local Builder Chat above to form a new team!
+            <div className="p-12 border border-stone-200 bg-white text-center rounded-2xl font-sans">
+              <p className="text-sm font-bold text-stone-950">No teams yet.</p>
+              <p className="text-xs text-stone-400 mt-1 leading-relaxed">Create your first team using the builder above.</p>
             </div>
           ) : (
             teams.map((team) => {
@@ -1499,7 +1470,7 @@ export default function Teams({
             onClick={() => {
               const items = [
                 { id: `log-${Date.now()}`, text: 'Support Team drafted 3 auto-responses to shipping delay emails', dept: 'Customer Support' },
-                { id: `log-${Date.now() + 1}`, text: 'Finance Team balanced Stripe log entries with Notion row checkpoints', dept: 'Finance' },
+                { id: `log-${Date.now() + 1}`, text: 'Finance Team balanced ledger entries with row checkpoints', dept: 'Finance' },
                 { id: `log-${Date.now() + 2}`, text: 'Supplier Team initialized transit queue polling', dept: 'Supplier' },
                 { id: `log-${Date.now() + 3}`, text: 'Marketing Team finalized newsletter brief layout drafts', dept: 'Marketing' },
                 { id: `log-${Date.now() + 4}`, text: 'Operations Team matched order inventory volumes', dept: 'Operations' }

@@ -7,6 +7,9 @@ import {
   Trash2, Shield, Eye, ArrowRight, Layers, CreditCard, ExternalLink, HelpCircle
 } from 'lucide-react';
 import { MockFile } from '@/types';
+import { useCompanyId } from '@/lib/use-company-id';
+import { fetchWorkflows, type WorkflowRecord } from '@/lib/supabase/workflows';
+import { fetchActivityLogs } from '@/lib/supabase/activity';
 
 interface Workflow {
   id: string;
@@ -37,84 +40,46 @@ export default function Workflows({
   onAddActivity,
   onSetActiveTab
 }: WorkflowsProps) {
-  
-  // Dynamic list of workflows mimicking actual business actions
-  const [workflows, setWorkflows] = useState<Workflow[]>([
-    {
-      id: 'wf-1',
-      name: 'Customer Support Workflow',
-      description: 'Reply to customer emails regarding return steps, verify Stripe ledger transactions, and update Shopify status.',
-      workers: ['Clara'],
-      apps: ['Gmail', 'Shopify', 'Stripe'],
-      status: 'Waiting',
-      humanWording: 'Waiting for new customer emails.',
-      lastActivity: 'Drafted reply to purchase refund inquiry #3398',
-      timeAgo: '4 mins ago',
-      filesCount: 1,
-      approvalRule: 'Needs approval before sending emails'
-    },
-    {
-      id: 'wf-2',
-      name: 'Supplier Update Workflow',
-      description: 'Reviews shipping timelines, generates logistical extension warning drafts, and pings the logistics coordinator.',
-      workers: ['Atlas'],
-      apps: ['Gmail', 'Slack'],
-      status: 'Running',
-      humanWording: 'Sending weekly supplier updates.',
-      lastActivity: 'Flagged supplier delay alert on custom spreadsheet ledger',
-      timeAgo: '12 mins ago',
-      filesCount: 2,
-      approvalRule: 'Auto-run allowed'
-    },
-    {
-      id: 'wf-3',
-      name: 'Weekly Finance Reports',
-      description: 'Downloads raw transactional balances from Stripe, audits discrepancies, and posts compiled brief sheets inside Notion.',
-      workers: ['Valkyrie'],
-      apps: ['Stripe', 'Notion'],
-      status: 'Finished',
-      humanWording: 'Invoices reconciled successfully today.',
-      lastActivity: 'Balanced ledger hashes for Q2 receivables folder',
-      timeAgo: '2 hours ago',
-      filesCount: 3,
-      approvalRule: 'Needs approval before sending emails'
-    },
-    {
-      id: 'wf-4',
-      name: 'Marketing Posting Workflow',
-      description: 'Coordinates social campaign previews, logs brand assets, and sends team schedules for promotional rollouts.',
-      workers: ['Synthesizer'],
-      apps: ['Slack', 'Notion'],
-      status: 'Needs Approval',
-      humanWording: 'Drafted refund offer for premium client.',
-      lastActivity: 'Prepared monthly publishing calendars and promotional copy',
-      timeAgo: '1 day ago',
-      filesCount: 1,
-      approvalRule: 'Needs approval before posting publicly'
-    },
-    {
-      id: 'wf-5',
-      name: 'Inventory Update Workflow',
-      description: 'Queries warehouse count logs, coordinates numbers with supplier files, and updates logistics sheets.',
-      workers: ['Atlas', 'Clara'],
-      apps: ['Shopify', 'Google Drive'],
-      status: 'Running',
-      humanWording: 'Updating system inventory spreadsheets.',
-      lastActivity: 'Re-aligned stock parameters for 12 winter items',
-      timeAgo: 'Just now',
-      filesCount: 1,
-      approvalRule: 'Auto-run allowed'
-    }
-  ]);
+  const { companyId } = useCompanyId();
 
-  // Live simulation log entries
-  const [liveActivities, setLiveActivities] = useState([
-    { id: 'l-1', text: 'Weekly supplier summaries compiled and sent dry-run', time: 'Just now', workflow: 'Supplier Update Workflow' },
-    { id: 'l-2', text: 'Customer query resolved regarding standard dispatch delays', time: '2 mins ago', workflow: 'Customer Support Workflow' },
-    { id: 'l-3', text: 'Social posting calendar updated inside client workspace Notion folder', time: '18 mins ago', workflow: 'Marketing Posting Workflow' },
-    { id: 'l-4', text: 'Matched 148 transactional hashes with actual Stripe balance releases', time: '1 hour ago', workflow: 'Weekly Finance Reports' },
-    { id: 'l-5', text: 'Safety encryption verified for logistics routing manifest PDF', time: '2 hours ago', workflow: 'Inventory Update Workflow' }
-  ]);
+  const mapWorkflow = (w: WorkflowRecord): Workflow => ({
+    id: w.id,
+    name: w.name,
+    description: w.description ?? '',
+    workers: w.workers,
+    apps: w.apps,
+    status: w.status,
+    humanWording: w.humanWording,
+    lastActivity: w.lastActivity,
+    timeAgo: w.timeAgo,
+    filesCount: w.filesCount,
+    approvalRule: w.approvalRule,
+  });
+
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchWorkflows(companyId).then((rows) => setWorkflows(rows.map(mapWorkflow)));
+  }, [companyId]);
+
+  const [liveActivities, setLiveActivities] = useState<
+    { id: string; text: string; time: string; workflow: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchActivityLogs(companyId, 10).then((logs) =>
+      setLiveActivities(
+        logs.map((l) => ({
+          id: l.id,
+          text: l.text,
+          time: l.time,
+          workflow: l.worker,
+        }))
+      )
+    );
+  }, [companyId]);
 
   // Workflow creation states
   const [newWfName, setNewWfName] = useState('');
@@ -135,44 +100,14 @@ export default function Workflows({
     }
   }, [connectedApps]);
   
-  // File upload state for Creation Panel
-  const [uploadedFiles, setUploadedFiles] = useState<MockFile[]>([
-    { name: 'standard_sop_support_v2.pdf', size: '1.2 MB', type: 'PDF', uploadedAt: '10 mins ago' }
-  ]);
+  const [uploadedFiles, setUploadedFiles] = useState<MockFile[]>([]);
+
+  useEffect(() => {
+    setUploadedFiles(companyFiles);
+  }, [companyFiles]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [creationMessage, setCreationMessage] = useState('');
 
-  // Auto incremental live activity simulator to keep the page feeling organic and "alive"
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (workflows.length === 0) return;
-      const activeWf = workflows[Math.floor(Math.random() * workflows.length)];
-      const appsText = activeWf.apps.length > 0 ? activeWf.apps.join(' & ') : 'isolated system';
-      const randomActivities = [
-        `Checked active communications on ${appsText}. Status: Green.`,
-        `Polled database queues. Verified private vault encryption.`,
-        `Autonomous specialist accomplished routine parameters.`,
-        `Polished invoice ledger matching protocols.`
-      ];
-      const randomText = randomActivities[Math.floor(Math.random() * randomActivities.length)];
-      
-      const newAct = {
-        id: `l-sim-${Date.now()}`,
-        text: randomText,
-        time: 'Just now',
-        workflow: activeWf.name
-      };
-
-      setLiveActivities(prev => [newAct, ...prev.slice(0, 9)]);
-
-      // Occasionally add to general operations dashboard too
-      if (Math.random() > 0.5 && activeWf.workers.length > 0) {
-        onAddActivity(randomText, activeWf.workers[0]);
-      }
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [workflows]);
 
   // Create new workflow action
   const handleCreateWorkflow = (e: React.FormEvent) => {
@@ -415,6 +350,12 @@ export default function Workflows({
         </div>
 
         <div className="space-y-6">
+          {workflows.length === 0 ? (
+            <div className="border border-stone-200 p-10 rounded-2xl text-center bg-white">
+              <p className="text-sm font-bold text-stone-950">No workflows yet.</p>
+              <p className="text-xs text-stone-400 mt-1 leading-relaxed">Create your first workflow below.</p>
+            </div>
+          ) : null}
           {workflows.map((wf) => (
             <div 
               key={wf.id} 
@@ -530,6 +471,12 @@ export default function Workflows({
           </div>
 
           <div className="border border-stone-200 rounded-2xl bg-white divide-y divide-stone-100 overflow-hidden shadow-xs">
+            {liveActivities.length === 0 ? (
+              <div className="p-10 text-center">
+                <p className="text-sm font-bold text-stone-950">No workflow activity yet.</p>
+                <p className="text-xs text-stone-400 mt-1 leading-relaxed">Activity will appear as workflows run.</p>
+              </div>
+            ) : null}
             {liveActivities.slice(0, 5).map((l) => (
               <div key={l.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
                 <div className="flex items-center gap-3">
@@ -831,7 +778,7 @@ export default function Workflows({
               </span>
               <h4 className="text-sm font-bold text-stone-900 font-sans">Finance workflow generating reports</h4>
               <p className="text-xs text-stone-400 mt-0.5 leading-relaxed font-sans">
-                Downloading raw deposit ledgers from Stripe, checking discrepancies locally, and updating secure spreadsheets.
+                Downloading raw deposit ledgers, checking discrepancies locally, and updating secure spreadsheets.
               </p>
             </div>
 
@@ -870,25 +817,23 @@ export default function Workflows({
           </div>
 
           <div className="border border-stone-150 rounded-2xl bg-white divide-y divide-stone-100 overflow-hidden">
-            {[
-              { id: 'Gmail', desc: 'Verify email inbox files and draft customer support inquiries.' },
-              { id: 'Slack', desc: 'Ping internal team channels regarding delay events immediately.' },
-              { id: 'Shopify', desc: 'Monitor inventory sizes and shopping transaction receipts.' },
-              { id: 'Stripe', desc: 'Process billing discrepancies and verify receivables invoices.' },
-              { id: 'Notion', desc: 'Gather content guidelines, calendars, and SOP drafts.' },
-              { id: 'Google Drive', desc: 'Access secure directories and corporate policy instruction PDFs.' },
-              { id: 'GitHub', desc: 'Check software code branches and monitor logistics portals.' }
-            ].map((app) => {
-              const matched = connectedApps.includes(app.id) || selectedAppsList.includes(app.id);
+            {connectedApps.length === 0 ? (
+              <div className="p-10 text-center">
+                <p className="text-sm font-bold text-stone-950">No connected apps yet.</p>
+                <p className="text-xs text-stone-400 mt-1">Connect integrations in Settings.</p>
+              </div>
+            ) : (
+            connectedApps.map((appId) => {
+              const matched = selectedAppsList.includes(appId);
               return (
-                <div key={app.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:bg-stone-50/20 transition-all text-xs">
+                <div key={appId} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:bg-stone-50/20 transition-all text-xs">
                   <div className="flex items-center gap-4 max-w-xl">
                     <div className="w-10 h-10 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-center shrink-0">
-                      <span className="font-mono text-stone-900 font-bold select-none text-[10px]">{app.id.substring(0, 2).toUpperCase()}</span>
+                      <span className="font-mono text-stone-900 font-bold select-none text-[10px]">{appId.substring(0, 2).toUpperCase()}</span>
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-stone-900">{app.id} Portal Connection</h4>
-                      <p className="text-xs text-stone-400 leading-relaxed mt-1 font-sans">{app.desc}</p>
+                      <h4 className="text-sm font-bold text-stone-900">{appId} Portal Connection</h4>
+                      <p className="text-xs text-stone-400 leading-relaxed mt-1 font-sans">Connected integration for workflow automation.</p>
                     </div>
                   </div>
 
@@ -902,7 +847,8 @@ export default function Workflows({
                   </div>
                 </div>
               );
-            })}
+            }))
+            }
           </div>
         </div>
       </section>

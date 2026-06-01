@@ -8,35 +8,38 @@ import {
   Sparkles, Database, Shield, Globe, CircleDot, Layers, HelpCircle
 } from 'lucide-react';
 import { AIWorker, TaskLog, MockFile, IntegrationApp } from '@/types';
+import { useCompanyId } from '@/lib/use-company-id';
+import { fetchAgents } from '@/lib/supabase/agents';
+import { fetchFiles } from '@/lib/supabase/files';
+import { fetchConnectedApps } from '@/lib/supabase/dashboard';
 
 export default function OSSimulator() {
-  // Navigation internal to mock OS
+  const { companyId } = useCompanyId();
   const [activeTab, setActiveTab] = useState<'workflows' | 'files' | 'integrations' | 'terminal'>('workflows');
   
-  // App Integrations status
-  const [apps, setApps] = useState<IntegrationApp[]>([
-    { id: 'stripe', name: 'Stripe Payments', connected: true, category: 'Finance' },
-    { id: 'slack', name: 'Slack Workplace', connected: true, category: 'Operations' },
-    { id: 'shopify', name: 'Shopify Store', connected: false, category: 'Operations' },
-    { id: 'gmail', name: 'Google Workspace / Gmail', connected: true, category: 'Support' },
-    { id: 'salesforce', name: 'Salesforce CRM', connected: false, category: 'Sales' },
-    { id: 'github', name: 'GitHub Repositories', connected: false, category: 'Development' },
-  ]);
+  const [apps, setApps] = useState<IntegrationApp[]>([]);
+  const [workers, setWorkers] = useState<AIWorker[]>([]);
+  const [files, setFiles] = useState<MockFile[]>([]);
 
-  // Initial list of workers
-  const [workers, setWorkers] = useState<AIWorker[]>([
-    { id: '1', name: 'Valkyrie', role: 'Finance', status: 'idle', avatarColor: 'bg-indigo-600', connectedApps: ['Stripe', 'Gmail'], tasksCount: 142 },
-    { id: '2', name: 'Atlas', role: 'Operations', status: 'idle', avatarColor: 'bg-emerald-600', connectedApps: ['Slack', 'Shopify'], tasksCount: 98 },
-    { id: '3', name: 'Clara', role: 'Support', status: 'idle', avatarColor: 'bg-amber-600', connectedApps: ['Gmail', 'Slack'], tasksCount: 310 },
-    { id: '4', name: 'Scribe', role: 'Legal', status: 'idle', avatarColor: 'bg-rose-600', connectedApps: ['Google Drive'], tasksCount: 41 },
-  ]);
-
-  // Default Files in Vault
-  const [files, setFiles] = useState<MockFile[]>([
-    { name: 'treasury_policy_2026.pdf', size: '2.4 MB', type: 'PDF', uploadedAt: '12 min ago' },
-    { name: 'supplier_ledger_q1.xlsx', size: '12.8 MB', type: 'Excel', uploadedAt: '2 hours ago' },
-    { name: 'standard_operating_procedure.md', size: '42 KB', type: 'Markdown', uploadedAt: 'Yesterday' },
-  ]);
+  useEffect(() => {
+    if (!companyId) return;
+    Promise.all([
+      fetchConnectedApps(companyId),
+      fetchAgents(companyId),
+      fetchFiles(companyId),
+    ]).then(([integrations, agentList, fileList]) => {
+      setApps(
+        integrations.map((app, i) => ({
+          id: `app-${i}`,
+          name: app.name,
+          connected: app.connected,
+          category: 'Integration',
+        }))
+      );
+      setWorkers(agentList);
+      setFiles(fileList);
+    });
+  }, [companyId]);
 
   // Logs stream representing current task output
   const [logs, setLogs] = useState<TaskLog[]>([]);
@@ -85,75 +88,84 @@ export default function OSSimulator() {
     setLogs([]);
     setActiveTab('workflows');
 
+    const financeWorker = workers.find((w) => w.role === 'Finance') ?? workers[0];
+    const supportWorker = workers.find((w) => w.role === 'Support') ?? workers[0];
+
     if (type === 'audit') {
+      if (!financeWorker) {
+        addSystemLog('No finance worker available. Create an agent first.', 'alert');
+        setIsProcessing(false);
+        return;
+      }
       setActivePipeline('Financial Record Midnight Sync');
-      setWorkers(prev => prev.map(w => w.name === 'Valkyrie' ? { ...w, status: 'running' } : w));
+      setWorkers(prev => prev.map(w => w.id === financeWorker.id ? { ...w, status: 'running' } : w));
       
       const steps = [
-        { msg: 'Valkyrie initialized. Synchronizing encryption tunnels...', delay: 200 },
-        { msg: 'Mounting source files: supplier_ledger_q1.xlsx and treasury_policy_2026.pdf ready.', delay: 700 },
-        { msg: 'Polling raw events from Stripe live payments...', delay: 1200 },
-        { msg: 'Stripe transaction match: Found 1,420 events to audits.', delay: 1800 },
-        { msg: 'Cross-analyzing transactions, verifying ledger hashes & bank deposit flags...', delay: 2400 },
-        { msg: 'Flag detected: Unreconciled receipt ref TX-7928 for $12,400.', delay: 3100 },
-        { msg: 'Self-correcting: Found corresponding deposit check via internal suppliers manifest. Matching OK.', type: 'success' as const, delay: 3800 },
+        { msg: `${financeWorker.name} initialized. Synchronizing encryption tunnels...`, delay: 200 },
+        { msg: 'Mounting source files from company vault.', delay: 700 },
+        { msg: 'Polling raw events from payment integrations...', delay: 1200 },
+        { msg: 'Transaction match: Found events to audit.', delay: 1800 },
+        { msg: 'Cross-analyzing transactions, verifying ledger hashes...', delay: 2400 },
         { msg: 'Reconciling general ledger balance parameters...', delay: 4400 },
-        { msg: 'Midnight reconciliation compiled successfully with 100% accuracy.', type: 'success' as const, delay: 5000 },
-        { msg: 'Stripe invoice database in-sync. Dispatching digital audit copy securely to CEO email.', type: 'info' as const, delay: 5600 },
+        { msg: 'Midnight reconciliation compiled successfully.', type: 'success' as const, delay: 5000 },
       ];
 
       for (const step of steps) {
         await new Promise(resolve => setTimeout(resolve, step.delay - (logs.length * 10)));
-        addSystemLog(step.msg, step.type || 'info', 'Valkyrie (Finance)');
+        addSystemLog(step.msg, step.type || 'info', `${financeWorker.name} (Finance)`);
       }
 
-      setWorkers(prev => prev.map(w => w.name === 'Valkyrie' ? { ...w, status: 'completed', tasksCount: w.tasksCount + 1 } : w));
+      setWorkers(prev => prev.map(w => w.id === financeWorker.id ? { ...w, status: 'completed', tasksCount: w.tasksCount + 1 } : w));
 
     } else if (type === 'support') {
+      if (!supportWorker) {
+        addSystemLog('No support worker available. Create an agent first.', 'alert');
+        setIsProcessing(false);
+        return;
+      }
       setActivePipeline('Autonomous Support Return Resolution');
-      setWorkers(prev => prev.map(w => w.name === 'Clara' ? { ...w, status: 'running' } : w));
+      setWorkers(prev => prev.map(w => w.id === supportWorker.id ? { ...w, status: 'running' } : w));
 
       const steps = [
-        { msg: 'Clara initialized. Accessing support queue from Google Mail flow.', delay: 200 },
-        { msg: 'Unread email parsed: "Request refund for delayed logistics package #8809"', delay: 800 },
-        { msg: 'Initiating Shopify database checks for user email...', delay: 1400 },
-        { msg: 'Order #3398 confirmed. Paid $149.00 via Stripe.', delay: 2000 },
-        { msg: 'Consulting logistics ledger logs for delays...', delay: 2600 },
-        { msg: 'SOP protocol matches: Package logistics standard compromised (> 4 days delay).', delay: 3200 },
-        { msg: 'Triggering Stripe refund mechanism autonomously for $149.00...', delay: 4000 },
-        { msg: 'Stripe transaction status: Refund Initiated (ID: ref_9980).', type: 'success' as const, delay: 4600 },
-        { msg: 'Drafting response: Refund notice generated and dispatched. Order archived.', type: 'success' as const, delay: 5200 },
-        { msg: 'Slack system update pushed: Logged refund activity for #operations compliance.', type: 'system' as const, delay: 5900 },
+        { msg: `${supportWorker.name} initialized. Accessing support queue.`, delay: 200 },
+        { msg: 'Unread email parsed from customer.', delay: 800 },
+        { msg: 'Consulting order records...', delay: 1400 },
+        { msg: 'SOP protocol matched for delayed shipment.', delay: 3200 },
+        { msg: 'Drafting response: Refund notice generated.', type: 'success' as const, delay: 5200 },
       ];
 
       for (const step of steps) {
         await new Promise(resolve => setTimeout(resolve, step.delay - (logs.length * 10)));
-        addSystemLog(step.msg, step.type || 'info', 'Clara (Support)');
+        addSystemLog(step.msg, step.type || 'info', `${supportWorker.name} (Support)`);
       }
 
-      setWorkers(prev => prev.map(w => w.name === 'Clara' ? { ...w, status: 'completed', tasksCount: w.tasksCount + 1 } : w));
+      setWorkers(prev => prev.map(w => w.id === supportWorker.id ? { ...w, status: 'completed', tasksCount: w.tasksCount + 1 } : w));
 
     } else if (type === 'legal') {
+      const legalWorker = workers.find((w) => w.role === 'Legal') ?? workers[0];
+      if (!legalWorker) {
+        addSystemLog('No legal worker available. Create an agent first.', 'alert');
+        setIsProcessing(false);
+        return;
+      }
       setActivePipeline('Outbound Master Services Agreement Scraper');
-      setWorkers(prev => prev.map(w => w.name === 'Scribe' ? { ...w, status: 'running' } : w));
+      setWorkers(prev => prev.map(w => w.id === legalWorker.id ? { ...w, status: 'running' } : w));
 
       const steps = [
-        { msg: 'Scribe initialized. Accessing uploaded enterprise PDF directory.', delay: 200 },
-        { msg: 'Parsing document: supplier_ledger_q1.xlsx and treasury_policy_2026.pdf', delay: 900 },
-        { msg: 'Extracting key-value liabilities list against GDPR compliance code v4...', delay: 1600 },
-        { msg: 'Liability check: Confirmed Standard Indemnification clause intact.', type: 'success' as const, delay: 2400 },
-        { msg: 'Discrepancy: Subsection 7a uses outdated storage limit parameters.', type: 'alert' as const, delay: 3200 },
-        { msg: 'Policy Engine Correction: Rewrote subsection using modern 90-day standards.', delay: 4000 },
-        { msg: 'Drafting master document rewrite to operations vault...', delay: 4700 },
+        { msg: `${legalWorker.name} initialized. Accessing uploaded documents.`, delay: 200 },
+        { msg: 'Parsing documents from company vault.', delay: 900 },
+        { msg: 'Extracting key-value liabilities list against compliance rules...', delay: 1600 },
+        { msg: 'Liability check: Standard indemnification clause intact.', type: 'success' as const, delay: 2400 },
+        { msg: 'Drafting document rewrite to operations vault...', delay: 4700 },
         { msg: 'Completed document generation. Security signature token pinned.', type: 'success' as const, delay: 5400 },
       ];
 
       for (const step of steps) {
         await new Promise(resolve => setTimeout(resolve, step.delay - (logs.length * 10)));
-        addSystemLog(step.msg, step.type || 'info', 'Scribe (Legal)');
+        addSystemLog(step.msg, step.type || 'info', `${legalWorker.name} (Legal)`);
       }
 
-      setWorkers(prev => prev.map(w => w.name === 'Scribe' ? { ...w, status: 'completed', tasksCount: w.tasksCount + 1 } : w));
+      setWorkers(prev => prev.map(w => w.id === legalWorker.id ? { ...w, status: 'completed', tasksCount: w.tasksCount + 1 } : w));
 
     } else if (type === 'custom' && customName) {
       setActivePipeline(`Custom Flow: ${customName}`);
@@ -351,6 +363,11 @@ export default function OSSimulator() {
 
           {/* AI Workers list */}
           <div className="flex flex-col gap-2">
+            {workers.length === 0 && (
+              <p className="text-[11px] text-stone-500 leading-snug px-1">
+                No AI workers yet. Create your first AI worker.
+              </p>
+            )}
             {workers.map((worker) => (
               <div 
                 key={worker.id}
@@ -471,7 +488,7 @@ export default function OSSimulator() {
                           required
                           value={newWorkerName}
                           onChange={(e) => setNewWorkerName(e.target.value)}
-                          placeholder="e.g. Scribe"
+                          placeholder="e.g. Ledger Agent"
                           className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-stone-950"
                         />
                       </div>
@@ -502,7 +519,7 @@ export default function OSSimulator() {
                       <textarea
                         value={customDuty}
                         onChange={(e) => setCustomDuty(e.target.value)}
-                        placeholder="e.g., Cross-audit invoices from Stripe, match with bank transactions in supplier_ledger_q1.xlsx and flag custom deviations automatically."
+                        placeholder="e.g., Cross-audit invoices from connected payment apps, match with bank transactions, and flag deviations automatically."
                         rows={2}
                         className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs focus:outline-none focus:ring-1 focus:ring-stone-950 font-mono resize-none"
                       />
@@ -584,7 +601,7 @@ export default function OSSimulator() {
                         </div>
                         <h5 className="text-xs font-bold text-stone-950">Midnight Ledger Reconciliation</h5>
                         <p className="text-[11px] text-stone-400 mt-1 leading-normal font-sans">
-                          Runs nightly at midnight. Parses daily Stripe receipts against offline compliance sheets.
+                          Runs nightly at midnight. Parses daily payment receipts against compliance sheets.
                         </p>
                       </div>
 
@@ -615,7 +632,7 @@ export default function OSSimulator() {
                         </div>
                         <h5 className="text-xs font-bold text-stone-950">Instant Support Returns Resolution</h5>
                         <p className="text-[11px] text-stone-400 mt-1 leading-normal font-sans">
-                          Trigger refund flows dynamically when delays occur on Shopify invoices.
+                          Trigger refund flows dynamically when delays occur on customer orders.
                         </p>
                       </div>
 

@@ -9,6 +9,8 @@ import {
   DollarSign, TrendingUp, Layers, HelpCircle, Activity, Globe, Wifi, Check
 } from 'lucide-react';
 import { AIWorker, MockFile } from '@/types';
+import { useCompanyId } from '@/lib/use-company-id';
+import { fetchMarketplaceData } from '@/lib/supabase/marketplace';
 
 interface MarketplaceProps {
   companyFiles: MockFile[];
@@ -80,6 +82,7 @@ export default function Marketplace({
   onAddActivity,
   onSetActiveTab
 }: MarketplaceProps) {
+  const { companyId } = useCompanyId();
 
   // 1. DYNAMIC SYSTEM STATS & WALLET
   const [walletBalance, setWalletBalance] = useState<number>(450.00);
@@ -109,210 +112,56 @@ export default function Marketplace({
   const [pubCreatorHandle, setPubCreatorHandle] = useState('@operator_prime');
   const [publishedSuccess, setPublishedSuccess] = useState(false);
 
-  // 1. DYNAMIC LIST OF SHAREABLE AGENTS FOR SALE
-  const [agents, setAgents] = useState<AgentListing[]>([
-    {
-      id: 'agent-1',
-      name: 'Clara Support Pro',
-      role: 'Support',
-      author: '@clara_operator',
-      description: 'An autonomous customer triage and support dispatch system designed to answer billing inquiries, process refunds safely using internal refund sheets, and route complex enterprise violations.',
-      price: 120.00,
-      avatarColor: 'bg-indigo-950 border border-indigo-700 text-white',
-      connectedApps: ['Stripe', 'Zendesk', 'HubSpot', 'Slack'],
-      capabilities: ['Fast customer replies', 'Automatic ticket sorting', 'Refund validation auditing'],
-      saves: 342,
-      featured: true
-    },
-    {
-      id: 'agent-2',
-      name: 'Valkyrie Tax Forensics Agent',
-      role: 'Finance',
-      author: '@valk_operator',
-      description: 'A bulletproof corporate finance flow that parses Stripe payouts weekly, extracts physical item invoices, reconciles tax values, and updates structured company CSV balances.',
-      price: 145.00,
-      avatarColor: 'bg-emerald-950 border border-emerald-700 text-white',
-      connectedApps: ['Stripe', 'QuickBooks', 'Google Sheets'],
-      capabilities: ['Stripe ledger reconciliation', 'Automated margin calculation', 'Tax audit logs preservation'],
-      saves: 289,
-      featured: true
-    },
-    {
-      id: 'agent-3',
-      name: 'Atlas Cargo Dispatch specialist',
-      role: 'Operations',
-      author: '@atlas_logistics',
-      description: 'Monitors international suppliers stock thresholds, validates shipping compliance documents, predicts warehouse cargo transit delays, and generates custom replenishment orders automatically.',
-      price: 160.00,
-      avatarColor: 'bg-amber-950 border border-amber-700 text-white',
-      connectedApps: ['Shopify', 'Airtable', 'Google Drive'],
-      capabilities: ['Replenishment scheduling', 'Supplier transit tracking', 'Stock depletion warning alerts'],
-      saves: 194,
-      featured: true
-    },
-    {
-      id: 'agent-4',
-      name: 'Synthesizer copy loop Special Agent',
-      role: 'Marketing',
-      author: '@synth_expert',
-      description: 'A campaign creation system that scans community news folders, drafts brand-compliant newsletters based on reference guidelines, and schedules segmented broadcasts directly.',
-      price: 90.00,
-      avatarColor: 'bg-purple-950 border border-purple-700 text-white',
-      connectedApps: ['Mailchimp', 'Substack', 'Google Docs', 'Slack'],
-      capabilities: ['High-conversion copywriting', 'Scraping reference content guidelines', 'Segmented news layouts preparation'],
-      saves: 415,
-      featured: false
-    }
-  ]);
+  const [agents, setAgents] = useState<AgentListing[]>([]);
+  const [skills, setSkills] = useState<SkillListing[]>([]);
+  const [datasets, setDatasets] = useState<DatasetListing[]>([]);
+  const [rentals, setRentals] = useState<RentalListing[]>([]);
 
-  // 2. DYNAMIC LIST OF SHAREABLE SKILLS FOR SALE
-  const [skills, setSkills] = useState<SkillListing[]>([
-    {
-      id: 'skill-1',
-      title: 'Zendesk Ticket Auto-Router',
-      description: 'Advanced routing algorithms which categorize client queries by urgency rating, sentiment analysis, and contractual SLA terms.',
-      author: '@clara_operator',
-      price: 19.00,
-      targetRole: 'Support Specialist Role',
-      saves: 521
-    },
-    {
-      id: 'skill-2',
-      title: 'QuickBooks Ledger Matcher Plugin',
-      description: 'Deep ledger scanner that detects discrepancy patterns, matches foreign currency transaction rates, and triggers audit flags.',
-      author: '@valk_operator',
-      price: 25.00,
-      targetRole: 'Finance Specialist Role',
-      saves: 342
-    },
-    {
-      id: 'skill-3',
-      title: 'Competitor Pricing Scraper Pipeline',
-      description: 'Real-time scraper routing scripts that monitor Shopify storefront variables and alert on pricing drops of predefined items.',
-      author: '@ecom_architect',
-      price: 34.00,
-      targetRole: 'Marketing and Research Role',
-      saves: 498
-    },
-    {
-      id: 'skill-4',
-      title: 'Global Carrier Delay Predictor Model',
-      description: 'Machine learning routine that processes historical transit metrics to adjust delivery ETA margins across active ocean lanes.',
-      author: '@atlas_logistics',
-      price: 45.00,
-      targetRole: 'Operations Sourcing Role',
-      saves: 184
-    }
-  ]);
-
-  // 3. DYNAMIC LIST OF CURATED DATASETS FOR SALE
-  const [datasets, setDatasets] = useState<DatasetListing[]>([
-    {
-      id: 'ds-1',
-      name: 'parts_supplier_master_inventory_2026.xlsx',
-      size: '1.8 MB',
-      type: 'xlsx',
-      description: 'Structured master index of trusted parts suppliers, transit lead times, freight carriers, and pricing structures.',
-      author: '@atlas_logistics',
-      price: 55.00,
-      saves: 429
-    },
-    {
-      id: 'ds-2',
-      name: 'refund_processing_framework_guide.pdf',
-      size: '2.4 MB',
-      type: 'pdf',
-      description: 'Complete operational directives for handling micro-refund limits, escalation procedures, and customer trust tiers.',
-      author: '@clara_operator',
-      price: 20.00,
-      saves: 502
-    },
-    {
-      id: 'ds-3',
-      name: 'newsletter_lifecycle_swipes_2026.csv',
-      size: '4.1 MB',
-      type: 'csv',
-      description: 'Strategic branding guidelines, copywriting tones, formatting specs, and template parameters for AI newsletter engines.',
-      author: '@synth_expert',
-      price: 35.00,
-      saves: 310
-    },
-    {
-      id: 'ds-4',
-      name: 'global_delay_scenarios_v2.json',
-      size: '640 KB',
-      type: 'json',
-      description: 'Anonymized dataset documenting historical e-commerce stock delays, cargo transit buffers, and backorder scenarios.',
-      author: '@ecom_architect',
-      price: 29.00,
-      saves: 184
-    }
-  ]);
-
-  // 4. DATA RENTAL SECTION - Live feeds that get constantly updated by the seller
-  const [rentals, setRentals] = useState<RentalListing[]>([
-    {
-      id: 'rent-1',
-      title: 'Live Global Ocean Cargo Delay Tracker',
-      description: 'Comprehensive tracking feed monitoring delayed arrivals across 8 critical shipping lanes. The seller pushes constant real-time telemetry updates as weather systems adjust.',
-      author: '@atlas_logistics',
-      rentPrice: 29.00,
-      category: 'Suppliers',
-      saves: 620,
-      liveUpdates: [
-        { timeAgo: 'Just now', message: 'Vessel EVER-GIVEN telemetry updated. Delayed 4h at Suez channel.', bytesText: '450B payload' },
-        { timeAgo: '4 min ago', message: 'Shanghai port status adjusted. Heavy fog cleared, throughput back to 98%.', bytesText: '1.1KB payload' },
-        { timeAgo: '15 min ago', message: 'Vessel MAERSK-VALLEY adjusted ETA for Rotterdam arrival.', bytesText: '320B payload' }
-      ]
-    },
-    {
-      id: 'rent-2',
-      title: 'Stripe Refund Rate Real-Time Index',
-      description: 'Real-time benchmark index highlighting refund rates across 15 SaaS categories, giving automated agents pricing indicators. Seller adds daily transaction updates.',
-      author: '@valk_operator',
-      rentPrice: 19.00,
-      category: 'Finance',
-      saves: 395,
-      liveUpdates: [
-        { timeAgo: 'Just now', message: 'AI Productivity Sector refund rate ticked up to 2.45%.', bytesText: '230B payload' },
-        { timeAgo: '12 min ago', message: 'Subscription billing disputes decreased by 0.12% across Stripe.', bytesText: '110B payload' }
-      ]
-    },
-    {
-      id: 'rent-3',
-      title: 'Trending Social Copysheet Stream',
-      description: 'Constant flow of viral social copy hooks generated from real high-conversion ads. The seller pushes updates twice hourly.',
-      author: '@synth_expert',
-      rentPrice: 15.00,
-      category: 'Marketing',
-      saves: 840,
-      liveUpdates: [
-        { timeAgo: 'Just now', message: 'Social hook #415 verified: "98% of SaaS companies miss this compliance audit..."', bytesText: '1.4KB payload' },
-        { timeAgo: '20 min ago', message: 'New visual style guidelines pushed for Twitter/LinkedIn loops.', bytesText: '2.1KB payload' }
-      ]
-    }
-  ]);
-
-  // Creators index list
-  const creators = [
-    { name: '@clara_operator', verified: true, role: 'Operations Architect', saves: 844, itemsCount: 4, avatar: 'bg-indigo-50 text-indigo-950', category: 'Customer Support' },
-    { name: '@valk_operator', verified: true, role: 'Financial Engineer', saves: 626, itemsCount: 4, avatar: 'bg-emerald-50 text-emerald-950', category: 'Finance' },
-    { name: '@atlas_logistics', verified: true, role: 'Sourcing Director', saves: 1421, itemsCount: 5, avatar: 'bg-amber-50 text-amber-950', category: 'Suppliers' },
-    { name: '@synth_expert', verified: true, role: 'Audience Strategy Advisor', saves: 1565, itemsCount: 3, avatar: 'bg-purple-50 text-purple-950', category: 'Marketing' },
-    { name: '@ecom_architect', verified: true, role: 'SaaS Logistics Lead', saves: 682, itemsCount: 3, avatar: 'bg-rose-50 text-rose-950', category: 'Ecommerce' }
-  ];
-
-  // Simulated constant updates for rent feeds to verify seller is constantly updating them!
   useEffect(() => {
-    // Keep appending updates randomly to rented streams to make it feel super alive and dynamic
+    if (!companyId) return;
+    fetchMarketplaceData(companyId).then((data) => {
+      setAgents(
+        data.agents.map((a) => ({
+          ...a,
+          role: a.role as AgentListing['role'],
+        }))
+      );
+      setSkills(data.skills);
+      setDatasets(data.datasets);
+      setRentals(data.rentals);
+    });
+  }, [companyId]);
+
+  const creators = Array.from(
+    new Map(
+      [...agents, ...skills, ...datasets, ...rentals]
+        .filter((item) => 'author' in item && item.author)
+        .map((item) => {
+          const author = (item as { author: string }).author;
+          return [
+            author,
+            {
+              name: author,
+              verified: true,
+              role: 'Publisher',
+              saves: 0,
+              itemsCount: 1,
+              avatar: 'bg-stone-50 text-stone-950',
+              category: 'Workspace',
+            },
+          ] as const;
+        })
+    ).values()
+  );
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setRentals(prevRentals => 
         prevRentals.map(rent => {
-          // If rented, let's simulate seller pushing updates constantly!
           if (rentedFeedIds.includes(rent.id)) {
             const randomUpdates = [
-              "Seller @atlas_logistics pushed fresh metadata payloads to global sync node.",
-              "Seller @valk_operator reconciled a new batch of 45 Stripe telemetry indexes.",
+              "Seller pushed fresh metadata payloads to global sync node.",
+              "Seller reconciled a new batch of telemetry indexes.",
               "Seller alert: Live variables audited. Checked configuration schemas safely.",
               "New benchmark log arrived: Transmitted from source sandbox safely.",
               "Stream synced: Regional databases successfully compiled parameters."

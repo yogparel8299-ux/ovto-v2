@@ -110,7 +110,7 @@ export default function Dashboard({
   const [customWorkerName, setCustomWorkerName] = useState('');
   const [customWorkerSpeciality, setCustomWorkerSpeciality] = useState<'Support' | 'Finance' | 'Marketing' | 'Operations'>('Support');
   const [customWorkerDuties, setCustomWorkerDuties] = useState('');
-  const [selectedApps, setSelectedApps] = useState<string[]>(['Gmail']);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [formSuccess, setFormSuccess] = useState(false);
 
   // App toggle connector handler
@@ -881,101 +881,65 @@ export default function Dashboard({
           </section>
 
 
-          {/* =========================================================================
-                                 SECTION 2 — WHAT’S HAPPENING
-              Main summary area with massive spacing. Shows employee work in human phrasing,
-              e.g., Support Worker replying to customers, Finance Worker generating weekly report,
-              Operations Worker updating supplier sheets, Marketing Worker scheduling posts.
-         ========================================================================= */}
           <section className="space-y-10" id="section-2-whats-happening">
             <div className="border-b border-stone-100 pb-4">
               <h3 className="text-xl font-bold tracking-tight text-stone-955 font-sans">What's happening right now</h3>
               <p className="text-xs text-stone-400 mt-1 leading-normal font-sans">Your specialists are autonomously handling daily operations safely.</p>
             </div>
 
-            {/* SPACIOUS MINIMAL EMPLOYEES GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8" id="whats-happening-employee-grid">
-              
-              {/* Support Employee card */}
-              <div className="border border-stone-200 p-8 rounded-2xl bg-white hover:border-stone-300 transition-all space-y-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-stone-400">Customer Support Employee</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-stone-950">Clara</h4>
-                    <p className="text-sm font-semibold tracking-tight text-stone-900 mt-1 leading-normal">
-                      Replying to customer emails and sorting active orders.
-                    </p>
-                  </div>
+              {workers.length === 0 ? (
+                <div className="col-span-full border border-stone-200 p-10 rounded-2xl text-center bg-white">
+                  <p className="text-sm font-bold text-stone-950">No AI workers yet.</p>
+                  <p className="text-xs text-stone-400 mt-1 leading-relaxed">Create your first AI worker.</p>
                 </div>
-                <div className="pt-6 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
-                  <span className="font-mono">Active on Gmail & Shopify</span>
-                  <span className="font-mono">{workers.find(w => w.name === 'Clara')?.tasksCount || 148} threads resolved</span>
-                </div>
-              </div>
-
-              {/* Finance assistant card */}
-              <div className="border border-stone-200 p-8 rounded-2xl bg-white hover:border-stone-300 transition-all space-y-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-stone-400">Finance & Accounting Assistant</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-stone-950">Valkyrie</h4>
-                    <p className="text-sm font-semibold tracking-tight text-stone-900 mt-1 leading-normal">
-                      Generating weekly settlement report and comparing ledgers against standard database files.
-                    </p>
-                  </div>
-                </div>
-                <div className="pt-6 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
-                  <span className="font-mono">Active on Stripe & Notion</span>
-                  <span className="font-mono">{workers.find(w => w.name === 'Valkyrie')?.tasksCount || 84} ledgers audited</span>
-                </div>
-              </div>
-
-              {/* Operations Worker card */}
-              <div className="border border-stone-200 p-8 rounded-2xl bg-white hover:border-stone-300 transition-all space-y-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-stone-400">Logistics & Operations Coordinator</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-stone-950">Atlas</h4>
-                    <p className="text-sm font-semibold tracking-tight text-stone-900 mt-1 leading-normal">
-                      Updating supplier logs and checking for route delivery delays to send warning dispatch drafts.
-                    </p>
-                  </div>
-                </div>
-                <div className="pt-6 border-t border-stone-100 flex items-center justify-between text-xs text-stone-450">
-                  <span className="font-mono text-amber-800">Requires Your Confirmation</span>
-                  <span className="font-mono text-stone-400">61 cycles</span>
-                </div>
-              </div>
-
-              {/* Marketing Coordinator Card */}
-              <div className="border border-stone-200 p-8 rounded-2xl bg-white hover:border-stone-300 transition-all space-y-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-stone-400">Marketing & Content Coordinator</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-stone-300" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-stone-950">Synthesizer</h4>
-                    <p className="text-sm font-semibold tracking-tight text-stone-900 mt-1 leading-normal">
-                      Scheduling promotional news letters, writing drafts, and cataloging competitive price schedules.
-                    </p>
-                  </div>
-                </div>
-                <div className="pt-6 border-t border-stone-100 flex items-center justify-between text-xs text-stone-450">
-                  <span className="font-mono text-stone-400 font-semibold uppercase">Standing By</span>
-                  <span className="font-mono text-stone-400">104 tasks done</span>
-                </div>
-              </div>
-
+              ) : (
+                workers.map((w) => {
+                  const statusLabel =
+                    w.status === 'running'
+                      ? 'Working'
+                      : w.status === 'paused'
+                        ? 'Needs Approval'
+                        : w.status === 'completed'
+                          ? 'Standing By'
+                          : 'Waiting';
+                  const pulseClass =
+                    w.status === 'running'
+                      ? 'bg-emerald-500 animate-pulse'
+                      : w.status === 'paused'
+                        ? 'bg-amber-500 animate-bounce'
+                        : 'bg-stone-300';
+                  return (
+                    <div
+                      key={w.id}
+                      className="border border-stone-200 p-8 rounded-2xl bg-white hover:border-stone-300 transition-all space-y-6 flex flex-col justify-between"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-stone-400">
+                            {w.role} specialist
+                          </span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${pulseClass}`} />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-stone-950">{w.name}</h4>
+                          <p className="text-sm font-semibold tracking-tight text-stone-900 mt-1 leading-normal">
+                            {statusLabel} on assigned company tasks.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="pt-6 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
+                        <span className="font-mono">
+                          {w.connectedApps.length > 0
+                            ? `Active on ${w.connectedApps.join(' & ')}`
+                            : 'No apps connected'}
+                        </span>
+                        <span className="font-mono">{w.tasksCount} tasks completed</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </section>
 

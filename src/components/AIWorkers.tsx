@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useCompanyId } from '@/lib/use-company-id';
+import { fetchActivityLogs } from '@/lib/supabase/activity';
+import type { AIWorker } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, FileText, Lock, ArrowRight, RefreshCw, Users, ShieldCheck, Mail, Database, Check, Upload,
@@ -39,116 +42,76 @@ export default function AIWorkers({
   workersList, 
   onAddWorkers, 
   onAddActivity,
-  connectedApps = ['Gmail', 'Slack', 'Shopify', 'Stripe', 'Notion'],
+  connectedApps = [],
   companyFiles = [],
   onAddFile
 }: AIWorkersProps) {
   
+  const { companyId } = useCompanyId();
   const fileInputRefLocally = useRef<HTMLInputElement>(null);
   const workerFormFileInputRef = useRef<HTMLInputElement>(null);
   const skillFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Core realistic active employees state using HUMAN wording (no tech jargon)
-  const [localWorkers, setLocalWorkers] = useState<AIWorkerItem[]>([
-    {
-      id: 'worker-act-1',
-      name: 'Clara',
-      role: 'Support Worker',
-      model: 'Gemini',
-      apiKeySet: true,
-      instructions: 'You help reply to order inquiries, sizes, and refunds.',
-      skills: ['customer support'],
-      connectedApps: ['Gmail', 'Shopify'],
-      filesInUse: ['size_guidelines.pdf', 'refund_policy_manual.docx'],
-      permissions: ['Can send emails', 'Needs approval before posting'],
-      status: 'Working',
-      currentTask: 'Replying to customer emails regarding order sizes and fabric materials.',
-      avatarColor: 'bg-stone-100 text-stone-905 border-stone-200'
-    },
-    {
-      id: 'worker-act-2',
-      name: 'Valkyrie',
-      role: 'Finance Worker',
-      model: 'GPT-4o',
-      apiKeySet: true,
-      instructions: 'Review monthly balance sheets and audit stripe transaction lists.',
-      skills: ['finance'],
-      connectedApps: ['Stripe', 'Notion'],
-      filesInUse: ['balance_sheet_q1.xlsx'],
-      permissions: ['Can edit spreadsheets'],
-      status: 'Finished',
-      currentTask: 'Generating weekly transaction ledger reconciliation Excel reports.',
-      avatarColor: 'bg-stone-50 text-stone-705 border-stone-200/50'
-    },
-    {
-      id: 'worker-act-3',
-      name: 'Atlas',
-      role: 'Supplier Worker',
-      model: 'Claude',
-      apiKeySet: true,
-      instructions: 'Track logistic counts and draft fabric alert notifications for delayed shipments.',
-      skills: ['supplier handling'],
-      connectedApps: ['Slack', 'Gmail'],
-      filesInUse: ['supplier_manifest.csv'],
-      permissions: ['Needs approval before posting'],
-      status: 'Needs Approval',
-      currentTask: 'Updating inventory listings and awaiting confirmation to draft delay warnings.',
-      approvalsNeeded: 'Confirming delay warning letter to Garment Factory #4',
-      avatarColor: 'bg-stone-100 text-stone-950 border-stone-250'
-    },
-    {
-      id: 'worker-act-4',
-      name: 'Elena',
-      role: 'Marketing Worker',
-      model: 'Gemini',
-      apiKeySet: true,
-      instructions: 'Draft brand campaign newsletters and update content calendar in Notion files.',
-      skills: ['marketing'],
-      connectedApps: ['Notion', 'Gmail'],
-      filesInUse: ['brand_voice_dictionary.docx'],
-      permissions: ['Read-only access'],
-      status: 'Finished',
-      currentTask: 'Drafting three custom promotional product campaign briefs.',
-      avatarColor: 'bg-stone-50 text-stone-605 border-stone-150'
-    },
-    {
-      id: 'worker-act-5',
-      name: 'Vega',
-      role: 'Research Worker',
-      model: 'Claude',
-      apiKeySet: true,
-      instructions: 'Research trends on competitor sizing, fabric materials, and pricing standards.',
-      skills: ['research'],
-      connectedApps: ['Google Drive', 'Notion'],
-      filesInUse: ['target_demographics.pdf'],
-      permissions: ['Read-only access'],
-      status: 'Waiting',
-      currentTask: 'Standing by. Awaiting new information parameters to study.',
-      avatarColor: 'bg-stone-100 text-stone-800 border-stone-200'
-    }
-  ]);
+  const mapWorkerStatus = (status: string): AIWorkerItem['status'] => {
+    if (status === 'running') return 'Working';
+    if (status === 'paused') return 'Needs Approval';
+    if (status === 'completed') return 'Finished';
+    return 'Waiting';
+  };
 
-  // Live work log items - alive, human, real business activities
-  const [liveActivityLogs, setLiveActivityLogs] = useState([
-    { id: 'log-1', worker: 'Clara', type: 'Customer replies sent', text: 'Sent sizing response regarding active fashion SKU #3820', time: '2 mins ago' },
-    { id: 'log-2', worker: 'Valkyrie', type: 'Weekly report completed', text: 'Reconciled 142 outstanding Stripe balance sheets successfully', time: '14 mins ago' },
-    { id: 'log-3', worker: 'Atlas', type: 'Supplier message drafted', text: 'Drafted shipping follow-up regarding fabric shipment delay', time: '55 mins ago' },
-    { id: 'log-4', worker: 'Elena', type: 'Marketing posts scheduled', text: 'Scheduled automated product announcement newsletter copy', time: '2 hours ago' },
-    { id: 'log-5', worker: 'Vega', type: 'Inventory sheet updated', text: 'Updated current Shopify catalog lists across localized Excel tables', time: '4 hours ago' }
-  ]);
+  const mapToLocalWorker = (w: AIWorker): AIWorkerItem => ({
+    id: w.id,
+    name: w.name,
+    role: w.role,
+    model: 'Workspace',
+    apiKeySet: true,
+    instructions: '',
+    skills: [],
+    connectedApps: w.connectedApps ?? [],
+    filesInUse: companyFiles.map((f) => f.name).slice(0, 3),
+    permissions: ['Needs approval before posting'],
+    status: mapWorkerStatus(w.status),
+    currentTask:
+      w.status === 'running'
+        ? 'Working on assigned company tasks.'
+        : 'Standing by for new assignments.',
+    avatarColor: w.avatarColor,
+  });
+
+  const [localWorkers, setLocalWorkers] = useState<AIWorkerItem[]>([]);
+  const [liveActivityLogs, setLiveActivityLogs] = useState<
+    { id: string; worker: string; type: string; text: string; time: string }[]
+  >([]);
+
+  useEffect(() => {
+    setLocalWorkers((workersList as AIWorker[]).map(mapToLocalWorker));
+  }, [workersList, companyFiles]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchActivityLogs(companyId, 10).then((logs) =>
+      setLiveActivityLogs(
+        logs.map((l) => ({
+          id: l.id,
+          worker: l.worker,
+          type: 'Activity',
+          text: l.text,
+          time: l.time,
+        }))
+      )
+    );
+  }, [companyId]);
 
   // Form State for Adding New Worker
   const [formName, setFormName] = useState('');
-  const [formRole, setFormRole] = useState('Support Worker');
+  const [formRole, setFormRole] = useState('Support');
   const [formModel, setFormModel] = useState('Gemini');
   const [formApiKey, setFormApiKey] = useState('');
   const [formShowApiKey, setFormShowApiKey] = useState(false);
   const [formInstructions, setFormInstructions] = useState('');
   
   // Skill file upload state & handlers
-  const [uploadedSkillFiles, setUploadedSkillFiles] = useState<{name: string, size: string}[]>([
-    { name: 'customer_support_spec.json', size: '12 KB' }
-  ]);
+  const [uploadedSkillFiles, setUploadedSkillFiles] = useState<{name: string, size: string}[]>([]);
 
   const handleSkillFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -185,8 +148,14 @@ export default function AIWorkers({
   const [customAppInput, setCustomAppInput] = useState('');
 
   // Multi-select lists
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(['customer support spec']);
-  const [selectedApps, setSelectedApps] = useState<string[]>(['Gmail', 'Shopify']);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (connectedApps.length > 0 && selectedApps.length === 0) {
+      setSelectedApps([connectedApps[0]]);
+    }
+  }, [connectedApps, selectedApps.length]);
   const [uploadedFormFiles, setUploadedFormFiles] = useState<{name: string, size: string}[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['Needs approval before posting']);
 
@@ -195,23 +164,11 @@ export default function AIWorkers({
   const [creationMessage, setCreationMessage] = useState('');
 
   // Dynamic connected apps state - we show extensive list by default, and user can link custom ones too!
-  const [allApps, setAllApps] = useState([
-    { id: 'Gmail', label: 'Gmail' },
-    { id: 'Slack', label: 'Slack' },
-    { id: 'Shopify', label: 'Shopify' },
-    { id: 'Stripe', label: 'Stripe' },
-    { id: 'Notion', label: 'Notion' },
-    { id: 'Google Drive', label: 'Google Drive' },
-    { id: 'GitHub', label: 'GitHub' },
-    { id: 'HubSpot', label: 'HubSpot' },
-    { id: 'Zendesk', label: 'Zendesk' },
-    { id: 'Airtable', label: 'Airtable' },
-    { id: 'Intercom', label: 'Intercom' },
-    { id: 'QuickBooks', label: 'QuickBooks' },
-    { id: 'Discord', label: 'Discord' },
-    { id: 'Salesforce', label: 'Salesforce' },
-    { id: 'Typeform', label: 'Typeform' }
-  ]);
+  const [allApps, setAllApps] = useState<{ id: string; label: string }[]>([]);
+
+  useEffect(() => {
+    setAllApps(connectedApps.map((name) => ({ id: name, label: name })));
+  }, [connectedApps]);
 
   const availablePermissions = [
     { id: 'Can send emails', label: 'Can send emails' },
@@ -221,37 +178,38 @@ export default function AIWorkers({
   ];
 
   // Global vault files list for Section 6
-  const [localDossiers, setLocalDossiers] = useState([
-    { name: 'refund_processing_policy_2026.pdf', size: '1.4 MB' },
-    { name: 'supplier_contacts_shipping.xlsx', size: '18.2 MB' },
-    { name: 'company_branding_guidelines.docx', size: '2.1 MB' }
-  ]);
+  const [localDossiers, setLocalDossiers] = useState<{ name: string; size: string }[]>([]);
+
+  useEffect(() => {
+    setLocalDossiers(companyFiles.map((f) => ({ name: f.name, size: f.size })));
+  }, [companyFiles]);
 
   // Skill presets to auto-fill instructions, name, and role for premium UX
   const applyPreset = (presetType: 'support' | 'finance' | 'marketing') => {
+    const apps = connectedApps.length > 0 ? connectedApps : selectedApps;
     if (presetType === 'support') {
       setFormName('Customer Success Helpdesk');
-      setFormRole('Support Worker');
-      setFormInstructions('You are a friendly customer success specialist. Read incoming inbox orders, check sizing guidelines, and prepare courteous drafts to clients.');
+      setFormRole('Support');
+      setFormInstructions('You are a friendly customer success specialist. Read incoming orders, check guidelines, and prepare courteous drafts to clients.');
       setSelectedSkills(['customer support skill']);
-      setUploadedSkillFiles([{ name: 'customer_support_skill.json', size: '8.4 KB' }]);
-      setSelectedApps(['Gmail', 'Shopify']);
+      setUploadedSkillFiles([]);
+      setSelectedApps(apps.slice(0, 2));
       setSelectedPermissions(['Needs approval before posting']);
     } else if (presetType === 'finance') {
       setFormName('Ledger Audit Worker');
-      setFormRole('Finance Worker');
-      setFormInstructions('Review internal reports from Stripe and automate ledger row entries in Notion sheets. Point out any balance gaps or refunds immediately.');
+      setFormRole('Finance');
+      setFormInstructions('Review internal reports and automate ledger row entries. Point out any balance gaps or refunds immediately.');
       setSelectedSkills(['finance audit skill']);
-      setUploadedSkillFiles([{ name: 'finance_audit_skill.json', size: '12.5 KB' }]);
-      setSelectedApps(['Stripe', 'Notion']);
+      setUploadedSkillFiles([]);
+      setSelectedApps(apps.slice(0, 2));
       setSelectedPermissions(['Can edit spreadsheets']);
     } else if (presetType === 'marketing') {
       setFormName('Pulse Content Writer');
-      setFormRole('Marketing Worker');
+      setFormRole('Marketing');
       setFormInstructions('Draft high-quality, elegant brand newsletters based on corporate announcements and post summaries to Slack rooms.');
       setSelectedSkills(['marketing content skill']);
-      setUploadedSkillFiles([{ name: 'marketing_content_skill.json', size: '9.2 KB' }]);
-      setSelectedApps(['Slack', 'Notion']);
+      setUploadedSkillFiles([]);
+      setSelectedApps(apps.slice(0, 2));
       setSelectedPermissions(['Can send emails']);
     }
   };
@@ -338,16 +296,7 @@ export default function AIWorkers({
         setCreationMessage("Testing access permissions...");
         setTimeout(() => {
           // Worker successfully instantiated
-          const placeholderTasksByRole: {[key: string]: string} = {
-            'Support Worker': 'Awaiting new client emails to draft replies.',
-            'Finance Worker': 'Awaiting recent Stripe log feeds to audit.',
-            'Marketing Worker': 'Polishing social brief drafts in Notion workspace.',
-            'Supplier Worker': 'Analyzing stock inventory thresholds.',
-            'Research Worker': 'Standing by for search trends instruction.',
-            'Operations Worker': 'Monitoring workflow logs for discrepancies.'
-          };
-
-          const matchedTask = placeholderTasksByRole[formRole] || 'Ready and listening for active workspace parameters.';
+          const matchedTask = 'Ready and listening for active workspace parameters.';
 
           const newEmployee: AIWorkerItem = {
             id: `worker-custom-${Date.now()}`,
@@ -358,9 +307,7 @@ export default function AIWorkers({
             instructions: formInstructions || 'Perform corporate task guidelines with maximum care.',
             skills: selectedSkills,
             connectedApps: selectedApps,
-            filesInUse: uploadedFormFiles.map(f => f.name).length > 0 
-              ? uploadedFormFiles.map(f => f.name) 
-              : ['company_policy_handbook.pdf'],
+            filesInUse: uploadedFormFiles.map(f => f.name),
             permissions: selectedPermissions,
             status: 'Waiting',
             currentTask: matchedTask,
@@ -400,8 +347,8 @@ export default function AIWorkers({
           setFormInstructions('');
           setFormApiKey('');
           setUploadedFormFiles([]);
-          setUploadedSkillFiles([{ name: 'customer_support_spec.json', size: '12 KB' }]);
-          setSelectedSkills(['customer support spec']);
+          setUploadedSkillFiles([]);
+          setSelectedSkills([]);
           setIsCreatingWorker(false);
 
           // Scroll to Section 2 (Active Workers) to show the new employee
@@ -512,6 +459,12 @@ export default function AIWorkers({
 
         {/* Dense visual cards without colorful gradients or useless lines */}
         <div className="space-y-6">
+          {localWorkers.length === 0 ? (
+            <div className="border border-stone-200 p-10 rounded-2xl text-center bg-white">
+              <p className="text-sm font-bold text-stone-950">No AI workers yet.</p>
+              <p className="text-xs text-stone-400 mt-1 leading-relaxed">Create your first AI worker.</p>
+            </div>
+          ) : null}
           {localWorkers.map((worker) => (
             <div 
               key={worker.id}
@@ -615,6 +568,12 @@ export default function AIWorkers({
         </div>
 
         <div className="border border-stone-200 rounded-2xl bg-white overflow-hidden">
+          {liveActivityLogs.length === 0 ? (
+            <div className="p-10 text-center">
+              <p className="text-sm font-bold text-stone-950">No recent activity</p>
+              <p className="text-xs text-stone-400 mt-1 leading-relaxed">Worker activity will appear here.</p>
+            </div>
+          ) : (
           <div className="divide-y divide-stone-100">
             {liveActivityLogs.map((log) => (
               <div key={log.id} className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-stone-50/20 transition-all">
@@ -634,6 +593,7 @@ export default function AIWorkers({
               </div>
             ))}
           </div>
+          )}
         </div>
       </section>
 
@@ -662,21 +622,21 @@ export default function AIWorkers({
                 onClick={() => applyPreset('support')}
                 className="text-xs bg-stone-50 border border-stone-200 hover:border-stone-400 text-stone-700 font-medium px-4 py-2.5 rounded-xl transition-all cursor-pointer outline-none"
               >
-                ⚡ Support Worker Template
+                ⚡ Support Template
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset('finance')}
                 className="text-xs bg-stone-50 border border-stone-200 hover:border-stone-400 text-stone-700 font-medium px-4 py-2.5 rounded-xl transition-all cursor-pointer outline-none"
               >
-                ⚡ Finance Worker Template
+                ⚡ Finance Template
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset('marketing')}
                 className="text-xs bg-stone-50 border border-stone-200 hover:border-stone-400 text-stone-700 font-medium px-4 py-2.5 rounded-xl transition-all cursor-pointer outline-none"
               >
-                ⚡ Marketing Worker Template
+                ⚡ Marketing Template
               </button>
             </div>
           </div>
@@ -694,7 +654,7 @@ export default function AIWorkers({
                   required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g., Clara (Support Worker)"
+                  placeholder="e.g., Helpdesk Assistant (Support)"
                   className="w-full text-sm bg-[#FCFCFA] border border-stone-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-950 font-sans text-stone-900"
                 />
               </div>

@@ -9,6 +9,8 @@ import {
   LockKeyhole, UserCheck, Settings, BookOpen, FileSpreadsheet, Briefcase
 } from 'lucide-react';
 import { AIWorker, MockFile } from '@/types';
+import { useCompanyId } from '@/lib/use-company-id';
+import { fetchActivityLogs } from '@/lib/supabase/activity';
 
 interface FilesProps {
   companyFiles: MockFile[];
@@ -36,7 +38,7 @@ export default function Files({
   onSetActiveTab,
   workersList
 }: FilesProps) {
-  // Setup file system state with rich parameters
+  const { companyId } = useCompanyId();
   const [richFiles, setRichFiles] = useState<RichFile[]>([]);
   
   // Track synchronization with parent companyFiles prop
@@ -50,16 +52,16 @@ export default function Files({
       
       if (nameLower.includes('refund') || nameLower.includes('support') || nameLower.includes('faq')) {
         tag = 'Support';
-        workers = ['Clara'];
+        workers = workersList.length > 0 ? [workersList[0].name] : [];
       } else if (nameLower.includes('supplier') || nameLower.includes('shipping') || nameLower.includes('transit') || nameLower.includes('cargo')) {
         tag = 'Suppliers';
-        workers = ['Atlas'];
+        workers = workersList.length > 1 ? [workersList[1].name] : workersList.length > 0 ? [workersList[0].name] : [];
       } else if (nameLower.includes('brand') || nameLower.includes('marketing') || nameLower.includes('copy')) {
         tag = 'Marketing';
-        workers = ['Synthesizer'];
+        workers = workersList.filter((w) => w.role === 'Marketing').map((w) => w.name).slice(0, 1);
       } else if (nameLower.includes('balance') || nameLower.includes('tax') || nameLower.includes('ledger') || nameLower.includes('finance') || nameLower.includes('payout')) {
         tag = 'Finance';
-        workers = ['Valkyrie'];
+        workers = workersList.filter((w) => w.role === 'Finance').map((w) => w.name).slice(0, 1);
       } else if (nameLower.includes('legal') || nameLower.includes('contract') || nameLower.includes('agreement') || nameLower.includes('compliance')) {
         tag = 'Legal';
         workers = [];
@@ -110,13 +112,23 @@ export default function Files({
   const [newFolderNameInput, setNewFolderNameInput] = useState<string>('');
   const [showFolderModal, setShowFolderModal] = useState<boolean>(false);
 
-  // File Upload Activity Logs Feed
-  const [activityLogs, setActivityLogs] = useState([
-    { id: 'act-1', text: 'supplier_contacts_shipping.xlsx connected to Atlas Worker and Supplier Team', time: '5 mins ago', icon: LinkIcon },
-    { id: 'act-2', text: 'refund_processing_policy_2026.pdf privacy status locked to Private', time: '30 mins ago', icon: LockIcon },
-    { id: 'act-3', text: 'company_branding_guidelines.docx allocated to Synthesizer for newsletter campaigns', time: '2 hours ago', icon: FileCheckIcon },
-    { id: 'act-4', text: 'Corporate vault synchronized across 4 active business departments', time: '1 day ago', icon: SyncIcon }
-  ]);
+  const [activityLogs, setActivityLogs] = useState<
+    { id: string; text: string; time: string; icon: typeof LinkIcon }[]
+  >([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchActivityLogs(companyId, 10).then((logs) =>
+      setActivityLogs(
+        logs.map((l) => ({
+          id: l.id,
+          text: l.text,
+          time: l.time,
+          icon: LinkIcon,
+        }))
+      )
+    );
+  }, [companyId]);
 
   // File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -480,28 +492,28 @@ export default function Files({
           {[
             {
               role: 'Finance Specialist',
-              example: 'Valkyrie uses Spreadsheets',
-              description: 'Processes raw Stripe payouts, verifies customer transaction ledger details, and compiles balanced company sheets.',
+              example: 'Finance specialist uses spreadsheets',
+              description: 'Processes payment payouts, verifies transaction ledger details, and compiles balanced company sheets.',
               fileIcon: FileSpreadsheet,
               tagColor: 'text-stone-700 bg-stone-100'
             },
             {
               role: 'Support Specialist',
-              example: 'Clara uses Company Policies',
+              example: 'Support specialist uses company policies',
               description: 'Answers customer billing tickets, processes standard refund rules, and ensures absolute procedural safety.',
               fileIcon: BookOpen,
               tagColor: 'text-stone-700 bg-stone-100'
             },
             {
               role: 'Supplier Manager',
-              example: 'Atlas uses Pricing Sheets',
+              example: 'Operations specialist uses pricing sheets',
               description: 'Updates stock schedules, evaluates cargo delays, and drafts supplier communications using stock logs.',
               fileIcon: Briefcase,
               tagColor: 'text-stone-700 bg-stone-100'
             },
             {
               role: 'Marketing Specialist',
-              example: 'Synthesizer uses Brand Docs',
+              example: 'Marketing specialist uses brand docs',
               description: 'Drafts approved news campaigns, references tone-of-voice directives, and frames newsletters with style parameters.',
               fileIcon: FileText,
               tagColor: 'text-stone-700 bg-stone-100'

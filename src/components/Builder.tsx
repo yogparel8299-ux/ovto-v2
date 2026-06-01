@@ -35,7 +35,7 @@ export default function Builder({
   onAddActivity,
   onAddFile,
   onToggleApp,
-  connectedApps = ['Gmail', 'Slack', 'Shopify', 'Notion', 'Stripe']
+  connectedApps = []
 }: BuilderProps) {
   const [prompt, setPrompt] = useState('');
   const [isBuilding, setIsBuilding] = useState(false);
@@ -68,17 +68,9 @@ export default function Builder({
   const [supportInputMessage, setSupportInputMessage] = useState<string>('');
   const [supportTyping, setSupportTyping] = useState<boolean>(false);
 
-  // Connection App list in Section 5
-  const [localApps, setLocalApps] = useState([
-    { name: 'Gmail', icon: Mail, desc: 'Sort customer threads and reply automatically', checked: connectedApps.includes('Gmail') },
-    { name: 'Slack', icon: Users, desc: 'Coordinate notification pulses in internal channels', checked: connectedApps.includes('Slack') },
-    { name: 'Shopify', icon: Database, desc: 'Query active products and live store shipping listings', checked: connectedApps.includes('Shopify') },
-    { name: 'Stripe', icon: ShieldCheck, desc: 'Check customer refund logs and match sales records', checked: connectedApps.includes('Stripe') },
-    { name: 'Notion', icon: FileText, desc: 'Write team briefs and document logistical schedules', checked: connectedApps.includes('Notion') },
-    { name: 'Google Drive', icon: Layers, desc: 'Index corporate handbook sheets and catalog spreadsheets', checked: connectedApps.includes('Google Drive') },
-    { name: 'GitHub', icon: CodeIcon, desc: 'Review code commits and dispatch software parameters', checked: connectedApps.includes('GitHub') },
-    { name: 'Calendar', icon: CalendarIcon, desc: 'Check scheduling slots and plan automated supplier dates', checked: connectedApps.includes('Calendar') }
-  ]);
+  const [localApps, setLocalApps] = useState<
+    { name: string; icon: typeof Mail; desc: string; checked: boolean }[]
+  >([]);
 
   // Rotational placeholders for Section 2
   const rotatingPlaceholders = [
@@ -98,12 +90,15 @@ export default function Builder({
     return () => clearInterval(timer);
   }, []);
 
-  // Update app status locally when parent state changes
   useEffect(() => {
-    setLocalApps(prev => prev.map(app => ({
-      ...app,
-      checked: connectedApps.includes(app.name)
-    })));
+    setLocalApps(
+      connectedApps.map((name) => ({
+        name,
+        icon: Mail,
+        desc: 'Connected workspace integration',
+        checked: true,
+      }))
+    );
   }, [connectedApps]);
 
   const handleAppToggle = (appName: string) => {
@@ -116,95 +111,106 @@ export default function Builder({
     onAddActivity(`Integration with ${appName} updated inside workspace session.`, 'System');
   };
 
-  // Generate intelligent tailored structures depending on anything the user types
+  // Generate tailored structures from prompt keywords (uses connected integrations only)
   const handleIntelligentAnalyze = (text: string) => {
     const query = text.toLowerCase().trim();
+    const appsSlice = (n: number) => connectedApps.slice(0, n);
+    const sessionFiles = uploadedFiles.map((f) => f.name).slice(0, 3);
+    const files = sessionFiles.length > 0 ? sessionFiles : [];
 
-    // 1. Gym SaaS Model
+    const build = (
+      key: string,
+      title: string,
+      tagline: string,
+      specs: { role: string; bio: string }[],
+      teams: string[],
+      workflows: string[]
+    ) => ({
+      key,
+      title,
+      tagline,
+      workers: specs.map((s) => ({
+        name: `${s.role} Agent`,
+        role: s.role,
+        bio: s.bio,
+        apps: appsSlice(3),
+      })),
+      teams,
+      workflows,
+      appsNeeded: connectedApps,
+      files,
+    });
+
     if (query.includes('gym') || query.includes('fitness') || query.includes('workout') || query.includes('member') || query.includes('saas product for gym')) {
-      return {
-        key: 'gym',
-        title: "FitPulse Gym SaaS",
-        tagline: "Autonomous Member Retention & Schedule Desks",
-        workers: [
-          { name: "Marcus", role: "Support", bio: "Fields membership questions, manages complaints, and coordinates schedule slots.", apps: ["Gmail", "Calendar"] },
-          { name: "Sienna", role: "Marketing", bio: "Analyzes retention logs and sends tailored promo briefs to save cancellations.", apps: ["Slack", "Notion", "Gmail"] },
-          { name: "Coach AI", role: "Operations", bio: "Surveys trainer occupancy schedules, towel listings, and logs delay records.", apps: ["Slack", "Calendar"] }
+      return build(
+        'gym',
+        'FitPulse Gym SaaS',
+        'Autonomous Member Retention & Schedule Desks',
+        [
+          { role: 'Support', bio: 'Fields membership questions, manages complaints, and coordinates schedule slots.' },
+          { role: 'Marketing', bio: 'Analyzes retention logs and sends tailored promo briefs to save cancellations.' },
+          { role: 'Operations', bio: 'Surveys trainer occupancy schedules and logs delay records.' },
         ],
-        teams: ["Member Engagement Desk", "Gym Operations Triage"],
-        workflows: ["Membership Save & Offer Dispatch Loop", "Peak Hours Trainer Calendar Alignment"],
-        appsNeeded: ["Gmail", "Slack", "Notion", "Stripe", "Calendar"],
-        files: ["membership_discounts.xlsx", "gym_safety_handbook.pdf"]
-      };
+        ['Member Engagement Desk', 'Gym Operations Triage'],
+        ['Membership Save & Offer Dispatch Loop', 'Peak Hours Trainer Calendar Alignment']
+      );
     }
 
-    // 2. Real Estate Model
     if (query.includes('real estate') || query.includes('estate') || query.includes('property') || query.includes('house') || query.includes('broker')) {
-      return {
-        key: 'estate',
-        title: "Hearthstone Real Estate",
-        tagline: "Sovereign Property Stewardship & Vetting Pipeline",
-        workers: [
-          { name: "Julian", role: "Support", bio: "Answers tenant inquiries, triggers quick codes, and drafts polite responses.", apps: ["Gmail", "Slack"] },
-          { name: "Aria", role: "Finance", bio: "Audits Stripe invoice balances, reconciles deposits, and drafts logs.", apps: ["Stripe", "Notion"] },
-          { name: "Logan", role: "Operations", bio: "Coordinates repair vendor quotes and registers safety audit spreadsheets.", apps: ["Notion", "Slack"] }
+      return build(
+        'estate',
+        'Hearthstone Real Estate',
+        'Sovereign Property Stewardship & Vetting Pipeline',
+        [
+          { role: 'Support', bio: 'Answers tenant inquiries and drafts polite responses.' },
+          { role: 'Finance', bio: 'Audits invoice balances, reconciles deposits, and drafts logs.' },
+          { role: 'Operations', bio: 'Coordinates repair vendor quotes and registers safety audit spreadsheets.' },
         ],
-        teams: ["Tenant Care Hub", "Vendor Repayment Desk"],
-        workflows: ["Late Payment Notification Loop", "Plumbing Emergency Dispatch pipeline"],
-        appsNeeded: ["Gmail", "Stripe", "Notion", "Slack"],
-        files: ["residential_lease_form.pdf", "trusted_vendors.xlsx"]
-      };
+        ['Tenant Care Hub', 'Vendor Repayment Desk'],
+        ['Late Payment Notification Loop', 'Emergency Repair Dispatch pipeline']
+      );
     }
 
-    // 3. Clothing Brand Model
     if (query.includes('cloth') || query.includes('brand') || query.includes('apparel') || query.includes('fashion') || query.includes('store')) {
-      return {
-        key: 'clothing',
-        title: "Vela Knits Clothing Brand",
-        tagline: "Direct-to-Consumer Boutique Apparel Dispatch",
-        workers: [
-          { name: "Chloe", role: "Support", bio: "Interprets sizing charts, coordinates refunds, and answers shipping emails.", apps: ["Gmail", "Shopify"] },
-          { name: "Kai", role: "Operations", bio: "Cross-checks factory delivery manifestos and reports low inventory gauges.", apps: ["Notion", "Slack", "Shopify"] },
-          { name: "Synthesizer", role: "Marketing", bio: "Schedules seasonal lookup mailers, newsletter drafts, and caption sheets.", apps: ["Notion", "Gmail"] }
+      return build(
+        'clothing',
+        'Vela Knits Clothing Brand',
+        'Direct-to-Consumer Boutique Apparel Dispatch',
+        [
+          { role: 'Support', bio: 'Interprets sizing charts, coordinates refunds, and answers shipping inquiries.' },
+          { role: 'Operations', bio: 'Cross-checks delivery manifests and reports low inventory gauges.' },
+          { role: 'Marketing', bio: 'Schedules seasonal mailers, newsletter drafts, and caption sheets.' },
         ],
-        teams: ["Order Fulfillment Desk", "Brand Engagement Group"],
-        workflows: ["Fulfillment Delay Customer Warning Dispatch", "Size Change Request Audit Automation"],
-        appsNeeded: ["Shopify", "Gmail", "Notion", "Slack"],
-        files: ["spring_apparel_sizes.pdf", "supplier_contacts.xlsx"]
-      };
+        ['Order Fulfillment Desk', 'Brand Engagement Group'],
+        ['Fulfillment Delay Customer Warning Dispatch', 'Size Change Request Audit Automation']
+      );
     }
 
-    // 4. Customer Support Desk / Support Company
     if (query.includes('support') || query.includes('customer') || query.includes('help') || query.includes('ticket')) {
-      return {
-        key: 'support',
-        title: "OctoSupport Desk",
-        tagline: "Instant Sentiment-Aware Helpdesk Fleet",
-        workers: [
-          { name: "Clara", role: "Support", bio: "Responds to ticket details, tags emotions, and handles standard issues.", apps: ["Gmail", "Slack"] },
-          { name: "Gabriel", role: "Support", bio: "Reconciles order timestamps on Stripe to authorize auto-refund sheets safely.", apps: ["Stripe", "Gmail"] }
+      return build(
+        'support',
+        'OctoSupport Desk',
+        'Instant Sentiment-Aware Helpdesk Fleet',
+        [
+          { role: 'Support', bio: 'Responds to ticket details, tags emotions, and handles standard issues.' },
+          { role: 'Support', bio: 'Reconciles order timestamps to authorize refund workflows safely.' },
         ],
-        teams: ["Customer Success Group", "Refund Dispatches Desk"],
-        workflows: ["Triage Emotion Queue Sentimental Scan", "Auto Refund Validation Gateway Loop"],
-        appsNeeded: ["Gmail", "Slack", "Stripe"],
-        files: ["returns_procedures.docx", "ticket_sentiments_indexer.xlsx"]
-      };
+        ['Customer Success Group', 'Refund Dispatches Desk'],
+        ['Triage Emotion Queue Scan', 'Auto Refund Validation Gateway Loop']
+      );
     }
 
-    // Default Fallback (Mobile Phone / General Retail)
-    return {
-      key: 'general',
-      title: "Sovereign Enterprise System",
-      tagline: "Autonomous Custom Business Process Hub",
-      workers: [
-        { name: "Julian", role: "Support", bio: "Reviews incoming letters and drafts customized answer emails.", apps: ["Gmail"] },
-        { name: "Iris", role: "Operations", bio: "Audits logistic tables, flagging delays or supplier feedback.", apps: ["Slack", "Notion"] }
+    return build(
+      'general',
+      'Sovereign Enterprise System',
+      'Autonomous Custom Business Process Hub',
+      [
+        { role: 'Support', bio: 'Reviews incoming messages and drafts customized answer emails.' },
+        { role: 'Operations', bio: 'Audits logistic tables, flagging delays or supplier feedback.' },
       ],
-      teams: ["Operations Cluster", "Triage Division"],
-      workflows: ["Continuous Document Synchronization Loop", "Alert Pulse on Customer Delays"],
-      appsNeeded: ["Gmail", "Slack", "Notion"],
-      files: ["company_procedures.pdf", "supplier_standard_agreements.xlsx"]
-    };
+      ['Operations Cluster', 'Triage Division'],
+      ['Continuous Document Synchronization Loop', 'Alert Pulse on Customer Delays']
+    );
   };
 
   const handleBuild = (e?: React.FormEvent) => {
@@ -262,7 +268,7 @@ export default function Builder({
     onAddActivity(`Spoken audio feedback session registered.`, 'System');
     setTimeout(() => {
       setIsListening(false);
-      setPrompt("Build an automated refund handling team that integrates with Shopify and notifies a Slack support channel.");
+      setPrompt('Build an automated refund handling team that connects to my workspace apps and notifies the support channel.');
     }, 2800);
   };
 
@@ -298,11 +304,11 @@ export default function Builder({
 
     setTimeout(() => {
       setSupportTyping(false);
-      let reply = "Your ticket has been prioritized! Our support staff Clara has logged this into our Shopify operations thread.";
+      let reply = "Your ticket has been prioritized! Our support team has logged this into your operations thread.";
       if (userMessage.toLowerCase().includes('refund') || userMessage.toLowerCase().includes('money')) {
-        reply = "I see your refund request. Support worker Gabriel has cross-checked your billing history and launched an automatic Stripe release!";
+        reply = 'I see your refund request. Our support agent has cross-checked your billing history and started the refund workflow.';
       } else if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hey')) {
-        reply = "Hello! Welcome to our automated customer lounge. Clara is ready to sync with your order number.";
+        reply = "Hello! Welcome to our automated customer lounge. Our agent is ready to sync with your order number.";
       }
       setSupportSimulatedChat(prev => [...prev, { sender: 'bot', text: reply }]);
     }, 1205);
@@ -310,6 +316,12 @@ export default function Builder({
 
   const activeQuery = prompt.trim() || lastBuiltPrompt || rotatingPlaceholders[placeholderIndex];
   const parsedOutcome = handleIntelligentAnalyze(activeQuery);
+  const previewSupportName =
+    parsedOutcome.workers.find((w) => w.role === 'Support')?.name ?? 'Support Agent';
+  const previewMarketingName =
+    parsedOutcome.workers.find((w) => w.role === 'Marketing')?.name ?? 'Marketing Agent';
+  const previewOperationsName =
+    parsedOutcome.workers.find((w) => w.role === 'Operations')?.name ?? 'Operations Agent';
 
   return (
     <div className="space-y-40 pb-36 px-4 md:px-0 font-sans" id="octo-grand-workspace-builder">
@@ -724,11 +736,11 @@ export default function Builder({
                             <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-stone-400">Class Booking Status</h4>
                             <div className="text-xs space-y-2">
                               <div className="flex justify-between p-2 rounded bg-stone-950 border border-stone-850">
-                                <span>Yoga Core Training (Marcus)</span>
+                                <span>Yoga Core Training ({previewSupportName})</span>
                                 <span className="text-[#00E575] font-semibold">9/12 Filled</span>
                               </div>
                               <div className="flex justify-between p-2 rounded bg-stone-950 border border-stone-850">
-                                <span>HIIT Conditioning (Sienna)</span>
+                                <span>HIIT Conditioning ({previewMarketingName})</span>
                                 <span className="text-stone-400 font-semibold">4/15 Filled</span>
                               </div>
                             </div>
@@ -748,8 +760,8 @@ export default function Builder({
                             <span className="text-xs font-bold text-stone-800 block">Select a Gym Session:</span>
                             <div className="flex flex-col gap-2.5">
                               {[
-                                { id: 'yoga', label: 'Yoga Core Flow (10:00 AM)', desc: "Instructed by Coach Marcus" },
-                                { id: 'hiit', label: 'Peak HIIT Power Training (12:30 PM)', desc: "Managed by Sienna AI" },
+                                { id: 'yoga', label: 'Yoga Core Flow (10:00 AM)', desc: `Instructed by ${previewSupportName}` },
+                                { id: 'hiit', label: 'Peak HIIT Power Training (12:30 PM)', desc: `Managed by ${previewMarketingName}` },
                                 { id: 'spin', label: 'Dynamic Spin Blast (17:00 PM)', desc: "Continuous operations" }
                               ].map((cls) => (
                                 <button
@@ -818,7 +830,7 @@ export default function Builder({
                             <h4 className="text-xs font-bold text-stone-950">Active Managed Estates</h4>
                             <div className="text-[11px] text-stone-605 space-y-1 font-mono">
                               <p>• Metropolitan Luxury Flat A (98% tenant score)</p>
-                              <p>• Downtown Penthouse Studio (Stripe lease active)</p>
+                              <p>• Downtown Penthouse Studio (lease active)</p>
                               <p>• Suburban Family Estate C (Repair desk linked)</p>
                             </div>
                           </div>
@@ -880,7 +892,7 @@ export default function Builder({
                                   type="button"
                                   onClick={() => {
                                     setRealEstateSelectedHouse(item);
-                                    setRealEstateIssueStatus("Plumber AI Julian coordinates dispatched. A repair ticket warning draft is dispatched to your Notion workspace ledger!");
+                                    setRealEstateIssueStatus(`${previewSupportName} coordinates dispatched. A repair ticket draft was saved to your workspace.`);
                                     onAddActivity(`Live Simulation: Tenant filed emergency repair alert for "${item}". Dispatching...`, 'System');
                                     setTimeout(() => setRealEstateIssueStatus(''), 4500);
                                   }}
@@ -899,7 +911,7 @@ export default function Builder({
                                   exit={{ opacity: 0 }}
                                   className="text-xs text-emerald-800 font-medium bg-emerald-50 border border-emerald-100 rounded-lg p-3 leading-normal"
                                 >
-                                  <strong>Julian (Support Agent):</strong> {realEstateIssueStatus}
+                                  <strong>{previewSupportName}:</strong> {realEstateIssueStatus}
                                 </motion.p>
                               )}
                             </AnimatePresence>
@@ -947,7 +959,7 @@ export default function Builder({
                         <div className="bg-stone-950 text-white rounded-xl p-8 border border-stone-850 shadow-xs space-y-6 text-left">
                           <div className="flex justify-between items-center border-b border-stone-800 pb-3">
                             <div>
-                              <span className="text-[10px] text-stone-400 font-mono tracking-wider block">Shopify Orders Dispatch List</span>
+                              <span className="text-[10px] text-stone-400 font-mono tracking-wider block">Orders Dispatch List</span>
                               <h3 className="text-sm font-semibold">Active Dispatch Triage</h3>
                             </div>
                             <span className="text-[10px] font-mono text-[#00E575] bg-emerald-950/40 border border-[#00E575]/20 px-2 py-0.5 rounded font-bold uppercase">Online</span>
@@ -961,7 +973,7 @@ export default function Builder({
                             <div className="space-y-2 text-xs font-mono">
                               <div className="flex justify-between p-2 rounded bg-stone-900 border border-stone-800">
                                 <span>Order #2938 (M. Size Exchange)</span>
-                                <span className="text-[#00E575] font-bold">Chloe Resolved</span>
+                                <span className="text-[#00E575] font-bold">{previewSupportName} Resolved</span>
                               </div>
                               <div className="flex justify-between p-2 rounded bg-stone-900 border border-stone-800">
                                 <span>Order #2937 (Heavyweight Parka)</span>
@@ -1084,7 +1096,7 @@ export default function Builder({
                             Annihilate customer backlog in seconds.
                           </h2>
                           <p className="text-xs text-stone-550 leading-relaxed font-sans mt-2">
-                            Integrate your inbox logs alongside Shopify vectors and Stripe cashflow charts to let our autonomous support system field tickets instantly and issue validated refund approvals.
+                            Connect your workspace integrations so autonomous support agents can field tickets instantly and route validated refund approvals.
                           </p>
                           <div className="grid grid-cols-3 gap-3 pt-3">
                             {[
@@ -1117,7 +1129,7 @@ export default function Builder({
                               <div className="p-3 bg-white border border-stone-150 rounded-xl flex items-center justify-between">
                                 <div className="space-y-0.5">
                                   <p className="font-bold text-stone-900">"Where is my ordered cargo?"</p>
-                                  <p className="text-[10px] text-stone-450">Triage: Shipping Delayed | Clara draft ready</p>
+                                  <p className="text-[10px] text-stone-450">Triage: Shipping Delayed | Agent draft ready</p>
                                 </div>
                                 <span className="text-[9px] font-mono text-orange-850 bg-orange-50 border border-orange-200/50 px-2 py-0.5 rounded-full font-bold">Medium</span>
                               </div>
@@ -1138,7 +1150,7 @@ export default function Builder({
                           <div>
                             <span className="text-[10px] uppercase font-mono text-[#0066FF] font-bold">Live Support Simulation</span>
                             <h3 className="text-lg font-bold text-stone-950 font-sans mt-0.5">Automated Customer Live Chat</h3>
-                            <p className="text-xs text-stone-500 mt-0.5">Type a question below (e.g. "I want a refund", "Where's my order?") and test Clara AI's response time!</p>
+                            <p className="text-xs text-stone-500 mt-0.5">Type a question below (e.g. "I want a refund", "Where's my order?") and test your AI agent response time!</p>
                           </div>
 
                           <div className="bg-[#FAF9FB] rounded-xl border border-stone-150 p-4 space-y-4">
@@ -1152,7 +1164,7 @@ export default function Builder({
                                       : 'bg-stone-50 text-stone-800 border border-stone-200/70'
                                   }`}>
                                     <p className="font-bold text-[9px] uppercase tracking-wider opacity-60 mb-1">
-                                      {msg.sender === 'user' ? 'You' : 'Clara Agent'}
+                                      {msg.sender === 'user' ? 'You' : 'Support Agent'}
                                     </p>
                                     <p>{msg.text}</p>
                                   </div>
@@ -1162,7 +1174,7 @@ export default function Builder({
                               {supportTyping && (
                                 <div className="flex justify-start">
                                   <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/50 text-[11px] text-stone-400 font-mono">
-                                    Clara Agent typing response...
+                                    Support Agent typing response...
                                   </div>
                                 </div>
                               )}
@@ -1263,7 +1275,7 @@ export default function Builder({
 
                           <div className="p-3 bg-stone-900 border border-stone-850 rounded text-[10px] space-y-1 text-stone-400">
                             <p className="font-bold text-stone-200 border-b border-stone-800 pb-1">Activity logs:</p>
-                            <p>• Julian initial startup secure handshakes verified.</p>
+                            <p>• {previewSupportName} initial startup secure handshakes verified.</p>
                             <p>• Synchronizing document maps into vector vault...</p>
                           </div>
                         </div>
