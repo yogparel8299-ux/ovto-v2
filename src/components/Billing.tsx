@@ -108,8 +108,8 @@ export default function Billing({
       usageScope: 'Basic support queue automation only'
     },
     Pro: {
-      name: 'Pro Workspace Plan',
-      price: '$49.00',
+      name: 'No active plan',
+      price: '$0.00',
       workerLimit: 8,
       storageLimit: '2 GB',
       appsLimit: 12,
@@ -354,9 +354,9 @@ export default function Billing({
         <div className="border-b border-stone-100 pb-3 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-wider">Active Subscription</span>
-            <h2 className="text-lg font-bold text-stone-900 font-sans">Current Plan Context</h2>
+            <h2 className="text-lg font-bold text-stone-900 font-sans">Billing status</h2>
           </div>
-          <span className="text-xs font-mono text-stone-400">Monthly renewal</span>
+          <span className="text-xs font-mono text-stone-400">No subscription active</span>
         </div>
 
         <div className="bg-[#FCFCFA] border border-stone-200 rounded-3xl p-8 lg:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -376,19 +376,19 @@ export default function Billing({
               <span className="text-4xl font-mono font-bold text-[#9D8055]">
                 {activePlanLimit.price}
               </span>
-              <span className="text-xs text-stone-400 font-light font-sans inline-block ml-1">USD / billed monthly</span>
+              <span className="text-xs text-stone-400 font-light font-sans inline-block ml-1">USD / no billing active</span>
             </div>
           </div>
 
           <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6 lg:pl-8 lg:border-l border-stone-150">
             {/* Limit A */}
             <div className="bg-white border border-stone-150 rounded-2xl p-5 space-y-3">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block font-bold">AI Workers Limit</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block font-bold">AI workers</span>
               <div className="space-y-1">
                 <span className="text-xl font-bold text-stone-900 font-mono">
                   {activeWorkersCount} / `{activePlanLimit.workerLimit}`
                 </span>
-                <p className="text-[10px] text-stone-500">Autonomous human profiles active</p>
+                <p className="text-[10px] text-stone-500">No plan limits active yet</p>
               </div>
               {/* Simplified flat progress indicator */}
               <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
@@ -401,12 +401,12 @@ export default function Billing({
 
             {/* Limit B */}
             <div className="bg-white border border-stone-150 rounded-2xl p-5 space-y-3">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block font-bold">Secure Storage</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block font-bold">Storage</span>
               <div className="space-y-1">
                 <span className="text-xl font-bold text-stone-900 font-mono">
                   {calculateTotalFilesBytes()} / {activePlanLimit.storageLimit}
                 </span>
-                <p className="text-[10px] text-stone-500">Encrypted directories sandbox</p>
+                <p className="text-[10px] text-stone-500">Storage usage will appear after uploads</p>
               </div>
               <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
                 <div 
@@ -418,12 +418,12 @@ export default function Billing({
 
             {/* Limit C */}
             <div className="bg-white border border-stone-150 rounded-2xl p-5 space-y-3">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block font-bold">Connected Tools</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block font-bold">Connected tools</span>
               <div className="space-y-1">
                 <span className="text-xl font-bold text-stone-900 font-mono">
                   6 / {activePlanLimit.appsLimit}
                 </span>
-                <p className="text-[10px] text-stone-500">Integrated database actions</p>
+                <p className="text-[10px] text-stone-500">Connected tools will appear after setup</p>
               </div>
               <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
                 <div 
@@ -1040,7 +1040,7 @@ export default function Billing({
 
               <div className="border-t border-stone-100 pt-5 space-y-3.5 text-xs text-stone-600">
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>2 AI Workers</strong> active</p>
-                <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>250 MB</strong> Secure Storage</p>
+                <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>250 MB</strong> Storage</p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>3 connected apps</strong></p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Core dispatch triggers only</p>
               </div>
@@ -1083,7 +1083,7 @@ export default function Billing({
 
               <div className="border-t border-stone-100 pt-5 space-y-3.5 text-xs text-stone-600">
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>8 AI Workers</strong> active</p>
-                <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>2 GB</strong> Secure Storage</p>
+                <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>2 GB</strong> Storage</p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>12 connected apps</strong></p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Cross-functional routine matching</p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> 24/7 background queue polling</p>
@@ -1122,7 +1122,7 @@ export default function Billing({
 
               <div className="border-t border-stone-100 pt-5 space-y-3.5 text-xs text-stone-600">
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>30 AI Workers</strong> active</p>
-                <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>25 GB</strong> Secure Storage</p>
+                <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>25 GB</strong> Storage</p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Up to <strong>100 connected apps</strong></p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Custom autonomous agency structures</p>
                 <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-[#9D8055]" /> Team synchronization & collaboration</p>

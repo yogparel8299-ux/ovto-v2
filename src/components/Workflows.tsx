@@ -757,48 +757,48 @@ export default function Workflows({
       <section className="py-20 border-t border-stone-100" id="section-5-operational-overview">
         <div className="space-y-8">
           <div className="border-b border-stone-100 pb-5">
-            <h3 className="text-xl font-bold tracking-tight text-stone-950 font-sans">Workflows running now</h3>
-            <p className="text-xs text-stone-400 mt-1">Overview of business work handled automatically across active operations.</p>
+            <h3 className="text-xl font-bold tracking-tight text-stone-950 font-sans">Workflows</h3>
+            <p className="text-xs text-stone-400 mt-1">Your real workflows will appear here after you create them.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="p-6 border border-stone-150 rounded-xl bg-stone-50/50 space-y-3">
               <span className="text-[10px] font-mono tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
-                Active Cycle
+                Empty
               </span>
-              <h4 className="text-sm font-bold text-stone-900 font-sans">Support workflow handling customer emails</h4>
+              <h4 className="text-sm font-bold text-stone-900 font-sans">No workflow running yet</h4>
               <p className="text-xs text-stone-400 mt-0.5 leading-relaxed font-sans">
-                Monitoring customer support inboxes on standard cycles and coordinating replies with verified company SOP structures.
+                Create your first workflow to start automation.
               </p>
             </div>
 
             <div className="p-6 border border-stone-150 rounded-xl bg-stone-50/50 space-y-3">
               <span className="text-[10px] font-mono tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
-                Active Cycle
+                Empty
               </span>
-              <h4 className="text-sm font-bold text-stone-900 font-sans">Finance workflow generating reports</h4>
+              <h4 className="text-sm font-bold text-stone-900 font-sans">No workflow running yet</h4>
               <p className="text-xs text-stone-400 mt-0.5 leading-relaxed font-sans">
-                Downloading raw deposit ledgers, checking discrepancies locally, and updating secure spreadsheets.
+                Create your first workflow to start automation.
               </p>
             </div>
 
             <div className="p-6 border border-stone-150 rounded-xl bg-stone-50/50 space-y-3">
               <span className="text-[10px] font-mono tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
-                Active Cycle
+                Empty
               </span>
-              <h4 className="text-sm font-bold text-stone-900 font-sans">Marketing workflow scheduling content</h4>
+              <h4 className="text-sm font-bold text-stone-900 font-sans">No workflow running yet</h4>
               <p className="text-xs text-stone-400 mt-0.5 leading-relaxed font-sans">
-                Preparing custom brand newsletters, updating calendar postings, and dispatching layout approvals for human checking.
+                Create your first workflow to start automation.
               </p>
             </div>
 
             <div className="p-6 border border-stone-150 rounded-xl bg-stone-50/50 space-y-3">
               <span className="text-[10px] font-mono tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
-                Active Cycle
+                Empty
               </span>
-              <h4 className="text-sm font-bold text-stone-900 font-sans">Inventory workflow updating spreadsheets</h4>
+              <h4 className="text-sm font-bold text-stone-900 font-sans">No workflow running yet</h4>
               <p className="text-xs text-stone-400 mt-0.5 leading-relaxed font-sans">
-                Scanning delivery backlog data blocks, compiling status briefings, and flagging delayed supplier shipping accounts.
+                Create your first workflow to start automation.
               </p>
             </div>
           </div>
