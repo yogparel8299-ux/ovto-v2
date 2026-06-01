@@ -1,29 +1,37 @@
 "use client";
 
-import { useState } from "react";
 import Builder from "@/components/Builder";
-import type { AIWorker, MockFile } from "@/types";
 import {
-  mockAddActivity,
-  mockConnectedApps,
-  mockFiles,
-  mockWorkers,
-} from "@/lib/workspace-mock";
+  useWorkspaceData,
+  WorkspaceEmptyCompany,
+  WorkspaceLoading,
+} from "@/lib/use-workspace-navigation";
 
 export default function BuilderPage() {
-  const [workers, setWorkers] = useState<AIWorker[]>(mockWorkers);
-  const [files, setFiles] = useState<MockFile[]>(mockFiles);
+  const {
+    loading,
+    companyId,
+    workers,
+    setWorkers,
+    files,
+    setFiles,
+    connectedApps,
+    onAddActivity,
+  } = useWorkspaceData();
+
+  if (loading) return <WorkspaceLoading />;
+  if (!companyId) return <WorkspaceEmptyCompany />;
 
   return (
     <main className="min-h-screen bg-[#FDFDFD]">
       <Builder
         onAddWorkers={(newWorkers) =>
-          setWorkers((prev) => [...prev, ...(newWorkers as AIWorker[])])
+          setWorkers((prev) => [...prev, ...newWorkers])
         }
-        onAddActivity={mockAddActivity}
+        onAddActivity={onAddActivity}
         onAddFile={(newFile) => setFiles((prev) => [newFile, ...prev])}
         onToggleApp={() => {}}
-        connectedApps={mockConnectedApps}
+        connectedApps={connectedApps}
       />
     </main>
   );

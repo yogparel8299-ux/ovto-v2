@@ -1,19 +1,28 @@
 "use client";
 
 import Billing from "@/components/Billing";
-import { mockAddActivity, mockFiles, mockWorkers } from "@/lib/workspace-mock";
-import { useWorkspaceNavigation } from "@/lib/use-workspace-navigation";
+import {
+  useWorkspaceData,
+  useWorkspaceNavigation,
+  WorkspaceEmptyCompany,
+  WorkspaceLoading,
+} from "@/lib/use-workspace-navigation";
 
 export default function BillingPage() {
   const onSetActiveTab = useWorkspaceNavigation();
+  const { loading, companyId, workers, files, onAddActivity } =
+    useWorkspaceData();
+
+  if (loading) return <WorkspaceLoading />;
+  if (!companyId) return <WorkspaceEmptyCompany />;
 
   return (
     <main className="min-h-screen bg-[#FDFDFD]">
       <Billing
-        companyFiles={mockFiles}
-        workersList={mockWorkers}
+        companyFiles={files}
+        workersList={workers}
         onSetActiveTab={onSetActiveTab}
-        onAddActivity={mockAddActivity}
+        onAddActivity={onAddActivity}
       />
     </main>
   );

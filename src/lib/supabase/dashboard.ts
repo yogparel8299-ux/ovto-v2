@@ -221,7 +221,7 @@ export async function fetchUserCompanies(
   if (!error && memberships?.length) {
     return memberships
       .map((row) => {
-        const company = row.companies as { id: string; name: string } | null;
+        const company = Array.isArray(row.companies) ? row.companies[0] : row.companies as { id: string; name: string } | null;
         if (!company) return null;
         return { id: company.id, name: company.name };
       })

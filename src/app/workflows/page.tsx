@@ -2,23 +2,27 @@
 
 import Workflows from "@/components/Workflows";
 import {
-  mockAddActivity,
-  mockConnectedApps,
-  mockFiles,
-  mockWorkers,
-} from "@/lib/workspace-mock";
-import { useWorkspaceNavigation } from "@/lib/use-workspace-navigation";
+  useWorkspaceData,
+  useWorkspaceNavigation,
+  WorkspaceEmptyCompany,
+  WorkspaceLoading,
+} from "@/lib/use-workspace-navigation";
 
 export default function WorkflowsPage() {
   const onSetActiveTab = useWorkspaceNavigation();
+  const { loading, companyId, workers, files, connectedApps, onAddActivity } =
+    useWorkspaceData();
+
+  if (loading) return <WorkspaceLoading />;
+  if (!companyId) return <WorkspaceEmptyCompany />;
 
   return (
     <main className="min-h-screen bg-[#FDFDFD]">
       <Workflows
-        workersList={mockWorkers}
-        connectedApps={mockConnectedApps}
-        companyFiles={mockFiles}
-        onAddActivity={mockAddActivity}
+        workersList={workers}
+        connectedApps={connectedApps}
+        companyFiles={files}
+        onAddActivity={onAddActivity}
         onSetActiveTab={onSetActiveTab}
       />
     </main>
