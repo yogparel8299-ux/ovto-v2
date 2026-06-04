@@ -3,6 +3,7 @@ import { resolveModelRoute } from "./model-router";
 import { callModel } from "./model-call";
 import { buildMemoryContext, searchCompanyMemory } from "./memory";
 import type { AgentRunRecord, RuntimeAgent } from "./types";
+import { deductCredits, ensureCompanyCanRun, estimateModelCostCents, recordUsage } from "./billing-runtime";
 
 function stringifyInput(input: AgentRunRecord["input"]) {
   if (!input) return "";
@@ -60,10 +61,50 @@ export async function executeAgentRun(params: {
 
   const memoryContext = buildMemoryContext(memories);
 
+  const billingCheck = await ensureCompanyCanRun({
+    supabase,
+    companyId: run.company_id,
+    estimatedCostCents: 1,
+  });
+
+  if (!billingCheck.allowed) {
+    throw new Error("Billing blocked: no active subscription or credits available.");
+  }
+
   const result = await callModel({
     route,
     systemPrompt: [buildSystemPrompt(runtimeAgent), memoryContext].filter(Boolean).join("\n\n"),
     userPrompt,
+  });
+
+  const costCents = estimateModelCostCents({
+    model: route.model,
+    totalTokens: result.totalTokens,
+    keySource: route.source,
+  });
+
+  await recordUsage({
+    supabase,
+    companyId: run.company_id,
+    sourceType: "agent_run",
+    sourceId: run.id,
+    unitsUsed: result.totalTokens,
+    costCents,
+  });
+
+  await deductCredits({
+    supabase,
+    companyId: run.company_id,
+    amountCents: costCents,
+    sourceType: "agent_run",
+    sourceId: run.id,
+    description: "Agent run model usage",
+    metadata: {
+      provider: route.provider,
+      model: route.model,
+      key_source: route.source,
+      total_tokens: result.totalTokens,
+    },
   });
 
   await supabase
@@ -76,7 +117,7 @@ export async function executeAgentRun(params: {
       prompt_tokens: result.promptTokens,
       completion_tokens: result.completionTokens,
       total_tokens: result.totalTokens,
-      cost_cents: 0,
+      cost_cents: costCents,
       finished_at: new Date().toISOString(),
     })
     .eq("id", run.id);
