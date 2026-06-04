@@ -122,40 +122,6 @@ export async function runWorkflow(params: {
   const steps = await getWorkflowSteps({ supabase, workflowId });
   const queuedRuns: any[] = [];
 
-  if (!steps.length && Array.isArray(workflow.workers)) {
-    for (const workerName of workflow.workers) {
-      const { data: agent } = await supabase
-        .from("agents")
-        .select("*")
-        .eq("company_id", companyId)
-        .ilike("name", String(workerName))
-        .maybeSingle();
-
-      if (!agent) continue;
-
-      const { data: agentRun, error } = await supabase
-        .from("agent_runs")
-        .insert({
-          company_id: companyId,
-          agent_id: agent.id,
-          status: "queued",
-          trigger_source: "workflow",
-          trigger_payload: {
-            workflow_id: workflowId,
-            workflow_run_id: workflowRun.id,
-          },
-          input: {
-            prompt: objective,
-            workflow_name: workflow.name,
-          },
-        })
-        .select()
-        .single();
-
-      if (!error && agentRun) queuedRuns.push(agentRun);
-    }
-  }
-
   for (const step of steps) {
     const stepType = String(step.step_type || step.type || "agent").toLowerCase();
 
