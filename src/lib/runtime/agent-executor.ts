@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveModelRoute } from "./model-router";
 import { callModel } from "./model-call";
+import { buildMemoryContext, searchCompanyMemory } from "./memory";
 import type { AgentRunRecord, RuntimeAgent } from "./types";
 
 function stringifyInput(input: AgentRunRecord["input"]) {
@@ -48,10 +49,21 @@ export async function executeAgentRun(params: {
     agent: runtimeAgent,
   });
 
+  const userPrompt = stringifyInput(run.input);
+
+  const memories = await searchCompanyMemory({
+    supabase,
+    companyId: run.company_id,
+    query: userPrompt,
+    limit: 8,
+  });
+
+  const memoryContext = buildMemoryContext(memories);
+
   const result = await callModel({
     route,
-    systemPrompt: buildSystemPrompt(runtimeAgent),
-    userPrompt: stringifyInput(run.input),
+    systemPrompt: [buildSystemPrompt(runtimeAgent), memoryContext].filter(Boolean).join("\n\n"),
+    userPrompt,
   });
 
   await supabase
