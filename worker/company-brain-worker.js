@@ -8,3 +8,12 @@ setInterval(
 );
 
 runCompanyBrainCycle();
+
+async function runAgentIntelligenceCycle() {
+  console.log("Agent Intelligence Cycle Running...");
+}
+
+setInterval(
+  runAgentIntelligenceCycle,
+  1000 * 60 * 30
+);
