@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, ShieldCheck, Lock, ArrowRight } from 'lucide-react';
+import { supabaseAuth } from '@/lib/supabase/auth';
 
 interface LoginViewProps {
   onLoginSuccess: (email: string) => void;
@@ -14,14 +15,25 @@ export default function LoginView({ onLoginSuccess, onGoToSignup }: LoginViewPro
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !email.includes('@')) return;
+
     setLoading(true);
-    setTimeout(() => {
-      onLoginSuccess(email);
-      setLoading(false);
-    }, 850);
+
+    const { data, error } =
+      await supabaseAuth.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    onLoginSuccess(data.user?.email || email);
   };
 
   return (
@@ -96,10 +108,13 @@ export default function LoginView({ onLoginSuccess, onGoToSignup }: LoginViewPro
 
           <button
             type="button"
-            onClick={() => {
-              const testEmail = 'founder@octo.ai';
-              setEmail(testEmail);
-              onLoginSuccess(testEmail);
+            onClick={async () => {
+              await supabaseAuth.auth.signInWithOAuth({
+                provider: "google",
+                options: {
+                  redirectTo: `${window.location.origin}/dashboard`,
+                },
+              });
             }}
             className="w-full py-3 bg-[#FCFCFA] hover:bg-stone-100 text-stone-800 border border-stone-200 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer flex items-center justify-center gap-2"
           >
